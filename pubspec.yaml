@@ -1,0 +1,46 @@
+name: ir_net
+description: Windows tool to show if user is connected to Iran internet or a VPN
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+version: 1.0.0+1
+environment:
+  sdk: ">=2.17.1 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  system_tray: ^2.0.1
+  http: ^0.13.5
+  dart_ipify: ^1.1.1
+  connectivity_plus: ^2.3.6+1
+  map: ^1.3.3
+  latlng: ^0.2.0
+  cached_network_image: ^3.2.1
+  rxdart: ^0.27.5
+  launch_at_startup: ^0.0.1
+  package_info_plus: ^1.4.3+1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+  msix: ^3.6.3
+
+msix_config:
+  display_name: IRNet
+  certificate_path: C:\Workspace\Flutter\ir_net\signing\CERTIFICATE.pfx
+  certificate_password: IrNetProject
+  logo_path: C:\Workspace\Flutter\ir_net\assets\app_icon.png
+  start_menu_icon_path: C:\Workspace\Flutter\ir_net\assets\app_icon.png
+  tile_icon_path: C:\Workspace\Flutter\ir_net\assets\app_icon.png
+  publisher_display_name: BuildToApp
+  identity_name: com.buildtoapp.irnet
+  msix_version: 1.0.0.0
+  capabilities: internetClient
+  install_certificate: true
+  app_installer:
+    publish_folder_path: build\windows\runner\Release
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
