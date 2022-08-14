@@ -2,15 +2,14 @@
 
 Windows tool to show if user is connected to Iran internet or a VPN
 
-## Getting Started
+<img src="screenshot.png" width="256" height="455">
 
-This project is a starting point for a Flutter application.
+[![Watch the video](https://img.youtube.com/vi/75ixmCQ6Q4k/default.jpg)](https://youtu.be/75ixmCQ6Q4k)
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Features
+- Show location of connection in map
+- SysTray icon without the app being open
+- Start by windows startup
+- Ability to minimize and hide from taskbar
+- Show details of your ISP
+- Update status when there is a network change

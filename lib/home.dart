@@ -123,7 +123,8 @@ class _MyHomePageState extends State<MyHomePage> {
         for (MapEntry e in (data).entries) {
           final charCode = '.'.codeUnitAt(0);
           final dots = String.fromCharCodes(
-              List.generate(longestLength - e.key.toString().length, (index) => charCode));
+            List.generate(longestLength - e.key.toString().length, (index) => charCode),
+          );
           result += '${e.key} $dots................. ${e.value}\n';
         }
         return Text(result);
