@@ -24,6 +24,7 @@ class MyBloc {
     runIpCheckInfinitely();
     subscribeConnectivityChange();
     appWindow.hide();
+    systemTray.setToolTip('IRNet: NOT READY');
   }
 
   void subscribeConnectivityChange() {
@@ -32,6 +33,7 @@ class MyBloc {
         checkIpLocation();
       } else {
         setTrayIconToOffline();
+        systemTray.setToolTip('IRNet: OFFLINE');
       }
     });
   }
@@ -47,11 +49,14 @@ class MyBloc {
     final ipv4 = await Ipify.ipv4();
     final response = await http.get(Uri.parse('http://ip-api.com/json/$ipv4?fields=5296093'));
     final json = jsonDecode(response.body);
-    updateTrayIcon(isIran: json['country'] == 'Iran');
+    final country = json['country'];
+    updateTrayIcon(isIran: country == 'Iran');
+    systemTray.setToolTip('IRNet: $country');
     if (json['lat'] != null && json['lon'] != null) {
       _latLng.sink.add(LatLng(json['lat'], json['lon']));
     }
     _ipLookupResult.value = json;
+    debugPrint('Country => $country');
   }
 
   void setTrayIconToOffline() {
