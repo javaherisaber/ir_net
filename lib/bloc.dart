@@ -16,11 +16,14 @@ class MyBloc {
   final _latLng = StreamController<LatLng>();
   final _ipLookupResult = BehaviorSubject();
 
+  bool _isPingingGoogle = false;
+
   Stream<LatLng> get latLng => _latLng.stream;
   Stream get ipLookupResult => _ipLookupResult.stream;
 
   void initialize() {
     initSystemTray();
+    pingGoogle();
     runIpCheckInfinitely();
     subscribeConnectivityChange();
     appWindow.hide();
@@ -32,8 +35,7 @@ class MyBloc {
       if (result != ConnectivityResult.none) {
         checkIpLocation();
       } else {
-        setTrayIconToOffline();
-        systemTray.setToolTip('IRNet: OFFLINE');
+        setStatusToOffline();
       }
     });
   }
@@ -45,9 +47,29 @@ class MyBloc {
     }
   }
 
+  void pingGoogle() async {
+    try {
+      _isPingingGoogle = true;
+      final url = Uri.parse('https://google.com');
+      await http.get(url).timeout(const Duration(seconds: 5));
+    } on TimeoutException {
+      _isPingingGoogle = false;
+      checkNetworkConnectivity();
+      return;
+    }
+    _isPingingGoogle = false;
+  }
+
   void checkIpLocation() async {
-    final ipv4 = await Ipify.ipv4();
-    final response = await http.get(Uri.parse('http://ip-api.com/json/$ipv4?fields=5296093'));
+    http.Response response;
+    try {
+      final ipv4 = await Ipify.ipv4();
+      final uri = Uri.parse('http://ip-api.com/json/$ipv4?fields=5296093');
+      response = await http.get(uri).timeout(const Duration(seconds: 5));
+    } catch (e) {
+      checkNetworkConnectivity();
+      return;
+    }
     final json = jsonDecode(response.body);
     final country = json['country'];
     updateTrayIcon(isIran: country == 'Iran');
@@ -59,8 +81,26 @@ class MyBloc {
     debugPrint('Country => $country');
   }
 
-  void setTrayIconToOffline() {
+  void checkNetworkConnectivity() async {
+    final result = await (Connectivity().checkConnectivity());
+    if (result == ConnectivityResult.none) {
+      setStatusToOffline();
+    } else {
+      setStatusToNetworkError();
+      if (!_isPingingGoogle) {
+        pingGoogle();
+      }
+    }
+  }
+
+  void setStatusToOffline() {
     systemTray.setImage('assets/offline.ico');
+    systemTray.setToolTip('IRNet: OFFLINE');
+  }
+
+  void setStatusToNetworkError() {
+    systemTray.setImage('assets/network_error.ico');
+    systemTray.setToolTip('IRNet: Network error');
   }
 
   void onExitClick() {

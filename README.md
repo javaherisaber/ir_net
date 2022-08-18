@@ -13,3 +13,8 @@ Watch the video below:
 - Ability to minimize and hide from taskbar
 - Show details of your ISP
 - Update status when there is a network change
+
+## TODO
+- Show ip address
+- Show DNS addresses
+- Add refresh button to context menu
