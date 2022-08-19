@@ -15,6 +15,5 @@ Watch the video below:
 - Update status when there is a network change
 
 ## TODO
-- Show ip address
 - Show DNS addresses
 - Add refresh button to context menu

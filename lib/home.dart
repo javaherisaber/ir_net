@@ -44,6 +44,8 @@ class _MyHomePageState extends State<MyHomePage> {
               locationTag(),
               const SizedBox(height: 16),
               map(),
+              const SizedBox(height: 16),
+              ipAddress(),
               const SizedBox(height: 32),
               lookupResult(),
               const SizedBox(height: 24),
@@ -64,6 +66,23 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget ipAddress() {
+    return StreamBuilder<dynamic>(
+        stream: bloc.ipLookupResult,
+        builder: (context, snapshot) {
+          final data = snapshot.data;
+          if (data == null) {
+            return const SizedBox.shrink();
+          }
+          return Container(
+            color: Colors.black12,
+            padding: const EdgeInsets.all(8),
+            child: Text('Your IP Address:   ${data['query']}'),
+          );
+        },
     );
   }
 

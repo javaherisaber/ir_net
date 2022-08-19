@@ -64,7 +64,7 @@ class MyBloc {
     http.Response response;
     try {
       final ipv4 = await Ipify.ipv4();
-      final uri = Uri.parse('http://ip-api.com/json/$ipv4?fields=5296093');
+      final uri = Uri.parse('http://ip-api.com/json/$ipv4?fields=1060825');
       response = await http.get(uri).timeout(const Duration(seconds: 5));
     } catch (e) {
       checkNetworkConnectivity();
