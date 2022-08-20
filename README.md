@@ -16,4 +16,3 @@ Watch the video below:
 
 ## TODO
 - Show DNS addresses
-- Add refresh button to context menu

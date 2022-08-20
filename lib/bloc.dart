@@ -128,6 +128,10 @@ class MyBloc {
     await menu.buildFrom([
       MenuItemLable(label: 'Show', onClicked: (menuItem) => appWindow.show()),
       MenuItemLable(label: 'Hide', onClicked: (menuItem) => appWindow.hide()),
+      MenuItemLable(label: 'Refresh', onClicked: (menuItem) {
+        pingGoogle();
+        checkIpLocation();
+      }),
       MenuItemLable(
           label: 'Exit',
           onClicked: (menuItem) {
