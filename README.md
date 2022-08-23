@@ -16,3 +16,4 @@ Watch the video below:
 
 ## TODO
 - Show DNS addresses
+- Add alternative api service
