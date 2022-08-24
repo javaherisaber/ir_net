@@ -17,3 +17,5 @@ Watch the video below:
 ## TODO
 - Show DNS addresses
 - Add alternative api service
+- Choose default country and show flag based on that
+- Option to show all countries flag
