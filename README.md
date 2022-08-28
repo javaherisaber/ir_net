@@ -20,3 +20,4 @@ Watch the video below:
 - Choose default country and show flag based on that
 - Option to show all countries flag
 - Add statistics eg. (number of times and minutes there was a network error, reasons of network failure)
+- Add app launcher icon
