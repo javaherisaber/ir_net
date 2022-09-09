@@ -214,7 +214,7 @@ class MyBloc {
     // We first init the systray menu
     await systemTray.initSystemTray(
       title: "system tray",
-      iconPath: 'assets/globe.ico',
+      iconPath: 'assets/loading.ico',
     );
 
     // create context menu

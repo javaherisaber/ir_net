@@ -23,9 +23,10 @@ void main() async {
 
 Future<void> initializeWinToast() async {
   await WinToast.instance().initialize(
-      appName: 'IRNet',
-      productName: 'IRNet',
-      companyName: 'BuildToApp');
+    appName: 'IRNet',
+    productName: 'IRNet',
+    companyName: 'BuildToApp',
+  );
 }
 
 Future<void> initializeSharedPreferences() async {
