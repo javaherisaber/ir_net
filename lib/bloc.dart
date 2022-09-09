@@ -76,13 +76,13 @@ class MyBloc {
   }
 
   void _verifyLeakedSites() async {
+    _foundALeakedSite = false;
+    _updateCountryTrayIcon();
     final checklist = _leakChecklist.valueOrNull;
     if (checklist != null) {
       for (var item in checklist) {
-        await _checkLeakedSite(item);
+        _checkLeakedSite(item);
       }
-      _foundALeakedSite = checklist.any((element) => element.status == LeakStatus.failed);
-      _updateCountryTrayIcon();
     }
   }
 
@@ -100,6 +100,10 @@ class MyBloc {
       debugPrint('leak detection for $url => ${response.bodyBytes.length ~/ 1024} Kilobytes');
     } on Exception {
       item.status = LeakStatus.failed;
+    }
+    if (item.status == LeakStatus.failed) {
+      _foundALeakedSite = true;
+      _updateCountryTrayIcon();
     }
     _replaceLeakItemInChecklist(item);
   }
