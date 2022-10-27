@@ -32,3 +32,5 @@ Currently to be able to install the .msix file you should accept our signature b
 - Option to show all countries flag
 - Add statistics eg. (number of times and minutes there was a network error, reasons of network failure)
 - Add app launcher icon
+- ShadowSocks and V2Ray-VMess support
+- Show error reason in leak detection list
