@@ -2,9 +2,7 @@
 
 Windows tool to show if user is connected to Iran internet or a VPN
 
-Watch the video below:
-
-[<img src="screenshot.png" width="256" height="455">](https://youtu.be/75ixmCQ6Q4k)
+<img src="screenshot.png" width="626" height="455">
 
 ## Features
 - Show location of connection in map
@@ -13,6 +11,19 @@ Watch the video below:
 - Ability to minimize and hide from taskbar
 - Show details of your ISP
 - Update status when there is a network change
+
+## How to install .msix file
+Currently to be able to install the .msix file you should accept our signature by doing below steps:
+
+- Right-click on the .msix file and select Properties
+- Go to the Digital Signatures tab inside the Properties dialog
+- Select the “buildtoapp.com” signer and click Details. Then click on View Certificate
+- Start installing the certificate by clicking on Install Certificate
+- Select Local Machine in the dialog. Click Next
+- Under “Place all certificates in the following store”, click Browse
+- Select the Trusted Root Certification Authorities folder. Click OK
+- Click Next and then Finish
+- Now, double-click on the file. You’ll see that the Install button is now enabled. Click on it to install the app
 
 ## TODO
 - Show DNS addresses
