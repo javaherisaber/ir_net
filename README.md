@@ -25,6 +25,12 @@ Currently to be able to install the .msix file you should accept our signature b
 - Click Next and then Finish
 - Now, double-click on the file. You’ll see that the Install button is now enabled. Click on it to install the app
 
+## Commands
+Create .msix file:
+```bat
+flutter pub run msix:create
+```
+
 ## TODO
 - Show DNS addresses
 - Add alternative api service
@@ -32,5 +38,4 @@ Currently to be able to install the .msix file you should accept our signature b
 - Option to show all countries flag
 - Add statistics eg. (number of times and minutes there was a network error, reasons of network failure)
 - Add app launcher icon
-- ShadowSocks and V2Ray-VMess support
 - Show error reason in leak detection list

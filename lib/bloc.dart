@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:dart_ipify/dart_ipify.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import 'package:ir_net/data/leak_item.dart';
 import 'package:ir_net/data/sharedpreferences.dart';
 import 'package:latlng/latlng.dart';
@@ -24,6 +24,7 @@ class MyBloc {
 
   bool _isPingingGoogle = false;
   bool _foundALeakedSite = false;
+  String? _proxyServer;
   String? _leakInput;
 
   Stream<LatLng> get latLng => _latLng.stream;
@@ -86,20 +87,33 @@ class MyBloc {
     }
   }
 
+  IOClient get _client {
+    final httpClient = HttpClient();
+    if (_proxyServer != null) {
+      httpClient.findProxy = (uri) {
+        return 'PROXY $_proxyServer';
+      };
+    } else {
+      httpClient.findProxy = null;
+    }
+    return IOClient(httpClient);
+  }
+
   Future<void> _checkLeakedSite(LeakItem item) async {
     item.status = LeakStatus.loading;
     _replaceLeakItemInChecklist(item);
     try {
       final url = Uri.parse(item.url);
-      final response = await http.get(url).timeout(const Duration(seconds: 5));
+      final response = await _client.get(url).timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         item.status = LeakStatus.passed;
       } else {
         item.status = LeakStatus.failed;
       }
       debugPrint('leak detection for $url => ${response.bodyBytes.length ~/ 1024} Kilobytes');
-    } on Exception {
+    } on Exception catch(ex) {
       item.status = LeakStatus.failed;
+      _checkNetworkRefuseException(ex);
     }
     if (item.status == LeakStatus.failed) {
       _foundALeakedSite = true;
@@ -113,8 +127,9 @@ class MyBloc {
   }
 
   void _subscribeConnectivityChange() {
-    Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
+    Connectivity().onConnectivityChanged.listen((ConnectivityResult result) async {
       if (result != ConnectivityResult.none) {
+        await _checkProxySettings();
         _checkIpLocation();
         _verifyLeakedSites();
       } else {
@@ -125,6 +140,7 @@ class MyBloc {
 
   void _runIpCheckInfinitely() async {
     while (true) {
+      await _checkProxySettings();
       _checkIpLocation();
       await Future.delayed(const Duration(seconds: 20));
     }
@@ -134,23 +150,34 @@ class MyBloc {
     try {
       _isPingingGoogle = true;
       final url = Uri.parse('https://google.com');
-      await http.get(url).timeout(const Duration(seconds: 5));
+      await _client.get(url).timeout(const Duration(seconds: 5));
     } on TimeoutException {
       _isPingingGoogle = false;
       _checkNetworkConnectivity();
       return;
+    } on SocketException catch(ex) {
+      _checkNetworkRefuseException(ex);
     }
     _isPingingGoogle = false;
   }
 
-  void _checkIpLocation() async {
+  void _checkNetworkRefuseException(Exception ex) {
+    if (ex is SocketException && ex.message.startsWith('The remote computer refused the network connection.')) {
+      _proxyServer = null;
+    }
+  }
+
+  Future<void> _checkIpLocation() async {
     http.Response response;
     try {
-      final ipv4 = await Ipify.ipv4();
+      final ipv4 = (await _client.get(Uri.parse("https://api.ipify.org"))).body;
       final uri = Uri.parse('http://ip-api.com/json/$ipv4?fields=1060825');
-      response = await http.get(uri).timeout(const Duration(seconds: 5));
+      response = await _client.get(uri).timeout(const Duration(seconds: 5));
     } on TimeoutException {
       _checkNetworkConnectivity();
+      return;
+    } on SocketException catch (ex) {
+      _checkNetworkRefuseException(ex);
       return;
     }
     final json = jsonDecode(response.body);
@@ -159,6 +186,42 @@ class MyBloc {
     }
     _ipLookupResult.value = json;
     _updateCountryTrayIcon();
+  }
+
+  Future<void> _checkProxySettings() async {
+    var executable = r'reg query "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Internet Settings"';
+    var result = await Process.run(executable, []);
+    final stdout = result.stdout.toString();
+    String? proxyServer;
+    var proxyIsEnabled = false;
+    if (stdout.isNotEmpty) {
+      final lines = stdout.split('\r\n');
+      for (var element in lines) {
+        if (element.contains('ProxyEnable') && element.endsWith('0x1')) {
+          proxyIsEnabled = true;
+        } else if (element.contains('ProxyEnable') && element.endsWith('0x0')) {
+          proxyIsEnabled = false;
+        }
+        if (element.contains('ProxyServer')) {
+          proxyServer = element.split(' ').last;
+          break;
+        }
+      }
+    }
+    var shouldRefreshLeakedSites = false;
+    if ((proxyIsEnabled && _proxyServer != proxyServer) ||
+        (!proxyIsEnabled && _proxyServer != null)) {
+      // there was a change in proxy settings
+      shouldRefreshLeakedSites = true;
+    }
+    if (proxyIsEnabled) {
+      _proxyServer = proxyServer;
+    } else {
+      _proxyServer = null;
+    }
+    if (shouldRefreshLeakedSites) {
+      _verifyLeakedSites();
+    }
   }
 
   void _checkNetworkConnectivity() async {
@@ -188,7 +251,8 @@ class MyBloc {
     exit(0);
   }
 
-  void onRefreshButtonClick() {
+  void onRefreshButtonClick() async {
+    await _checkProxySettings();
     _pingGoogle();
     _checkIpLocation();
     _verifyLeakedSites();

@@ -141,13 +141,6 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.1.1"
-  dart_ipify:
-    dependency: "direct main"
-    description:
-      name: dart_ipify
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "1.1.1"
   dbus:
     dependency: transitive
     description:
