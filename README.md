@@ -6,11 +6,13 @@ Windows tool to show if user is connected to Iran internet or a VPN
 
 ## Features
 - Show location of connection in map
+- Leak detection on your urls
 - SysTray icon without the app being open
 - Start by windows startup
 - Ability to minimize and hide from taskbar
 - Show details of your ISP
 - Update status when there is a network change
+- Connect through proxy vpn types (eg. ShadowSocks, VMess, ...)
 
 ## How to install .msix file
 Currently to be able to install the .msix file you should accept our signature by doing below steps:
