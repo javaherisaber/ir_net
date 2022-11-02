@@ -41,3 +41,6 @@ flutter pub run msix:create
 - Add statistics eg. (number of times and minutes there was a network error, reasons of network failure)
 - Add app launcher icon
 - Show error reason in leak detection list
+- Show which app occupied a port
+- Speed test
+- Shortcuts to important screens of windows (eg. Network adapters)
