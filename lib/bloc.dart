@@ -104,7 +104,7 @@ class MyBloc {
     _replaceLeakItemInChecklist(item);
     try {
       final url = Uri.parse(item.url);
-      final response = await _client.get(url).timeout(const Duration(seconds: 5));
+      final response = await _client.get(url).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         item.status = LeakStatus.passed;
       } else {
@@ -172,7 +172,7 @@ class MyBloc {
     try {
       final ipv4 = (await _client.get(Uri.parse("https://api.ipify.org"))).body;
       final uri = Uri.parse('http://ip-api.com/json/$ipv4?fields=1060825');
-      response = await _client.get(uri).timeout(const Duration(seconds: 5));
+      response = await _client.get(uri).timeout(const Duration(seconds: 10));
     } on TimeoutException {
       _checkNetworkConnectivity();
       return;
