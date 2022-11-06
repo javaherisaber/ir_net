@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:ir_net/data/leak_item.dart';
-import 'package:ir_net/data/sharedpreferences.dart';
+import 'package:ir_net/data/shared_preferences.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:win_toast/win_toast.dart';
@@ -10,7 +10,7 @@ import 'package:win_toast/win_toast.dart';
 import 'app.dart';
 import 'bloc.dart';
 
-final bloc = MyBloc();
+final bloc = AppBloc();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,7 +18,7 @@ void main() async {
   await initializeLaunchAtStartup();
   await initializeSharedPreferences();
   bloc.initialize();
-  runApp(const MyApp());
+  runApp(const App());
 }
 
 Future<void> initializeWinToast() async {

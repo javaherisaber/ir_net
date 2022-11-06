@@ -7,16 +7,15 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:ir_net/data/leak_item.dart';
-import 'package:ir_net/data/sharedpreferences.dart';
+import 'package:ir_net/data/shared_preferences.dart';
+import 'package:ir_net/utils/cmd.dart';
+import 'package:ir_net/utils/system_tray.dart';
 import 'package:latlng/latlng.dart';
 import 'package:live_event/live_event.dart';
 import 'package:rxdart/rxdart.dart';
-import 'package:system_tray/system_tray.dart';
 import 'package:win_toast/win_toast.dart';
 
-class MyBloc {
-  final SystemTray systemTray = SystemTray();
-  final AppWindow appWindow = AppWindow();
+class AppBloc with AppSystemTray {
   final _latLng = StreamController<LatLng>();
   final _ipLookupResult = BehaviorSubject();
   final _clearLeakInput = LiveEvent();
@@ -37,12 +36,10 @@ class MyBloc {
   }
 
   void initialize() {
-    _initSystemTray();
+    initSystemTray();
     _pingGoogle();
     _runIpCheckInfinitely();
     _subscribeConnectivityChange();
-    appWindow.hide();
-    systemTray.setToolTip('IRNet: NOT READY');
     _initializeLeakChecklist();
   }
 
@@ -133,7 +130,7 @@ class MyBloc {
         _checkIpLocation();
         _verifyLeakedSites();
       } else {
-        _setStatusToOffline();
+        setSystemTrayStatusToOffline();
       }
     });
   }
@@ -189,33 +186,15 @@ class MyBloc {
   }
 
   Future<void> _checkProxySettings() async {
-    var executable = r'reg query "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Internet Settings"';
-    var result = await Process.run(executable, []);
-    final stdout = result.stdout.toString();
-    String? proxyServer;
-    var proxyIsEnabled = false;
-    if (stdout.isNotEmpty) {
-      final lines = stdout.split('\r\n');
-      for (var element in lines) {
-        if (element.contains('ProxyEnable') && element.endsWith('0x1')) {
-          proxyIsEnabled = true;
-        } else if (element.contains('ProxyEnable') && element.endsWith('0x0')) {
-          proxyIsEnabled = false;
-        }
-        if (element.contains('ProxyServer')) {
-          proxyServer = element.split(' ').last;
-          break;
-        }
-      }
-    }
+    final proxyResult = await AppCmd.getProxySettings();
     var shouldRefreshLeakedSites = false;
-    if ((proxyIsEnabled && _proxyServer != proxyServer) ||
-        (!proxyIsEnabled && _proxyServer != null)) {
+    if ((proxyResult.proxyEnabled && _proxyServer != proxyResult.proxyServer) ||
+        (!proxyResult.proxyEnabled && _proxyServer != null)) {
       // there was a change in proxy settings
       shouldRefreshLeakedSites = true;
     }
-    if (proxyIsEnabled) {
-      _proxyServer = proxyServer;
+    if (proxyResult.proxyEnabled) {
+      _proxyServer = proxyResult.proxyServer;
     } else {
       _proxyServer = null;
     }
@@ -227,31 +206,30 @@ class MyBloc {
   void _checkNetworkConnectivity() async {
     final result = await (Connectivity().checkConnectivity());
     if (result == ConnectivityResult.none) {
-      _setStatusToOffline();
+      setSystemTrayStatusToOffline();
     } else {
-      _setStatusToNetworkError();
+      setSystemTrayStatusToNetworkError();
       if (!_isPingingGoogle) {
         _pingGoogle();
       }
     }
   }
 
-  void _setStatusToOffline() {
-    systemTray.setImage('assets/offline.ico');
-    systemTray.setToolTip('IRNet: OFFLINE');
-  }
-
-  void _setStatusToNetworkError() {
-    systemTray.setImage('assets/network_error.ico');
-    systemTray.setToolTip('IRNet: Network error');
-  }
-
   void onExitClick() {
-    systemTray.destroy();
+    destroySystemTray();
     exit(0);
   }
 
   void onRefreshButtonClick() async {
+    _handleRefresh();
+  }
+
+  @override
+  void onSystemTrayRefreshButtonClick() {
+    _handleRefresh();
+  }
+
+  void _handleRefresh() async {
     await _checkProxySettings();
     _pingGoogle();
     _checkIpLocation();
@@ -265,57 +243,18 @@ class MyBloc {
     }
     final country = json['country'];
     bool isIran = country == 'Iran';
+    var tooltip = '';
     if (_foundALeakedSite) {
-      systemTray.setToolTip('IRNet: $country (Leaked!)');
+      tooltip = 'IRNet: $country (Leaked!)';
     } else {
-      systemTray.setToolTip('IRNet: $country');
+      tooltip = 'IRNet: $country';
     }
     var globIcon = 'assets/globe.ico';
     if (_foundALeakedSite && (await AppSharedPreferences.showLeakInSysTray)) {
       globIcon = 'assets/globe_leaked.ico';
     }
-    systemTray.setImage(isIran ? 'assets/iran.ico' : globIcon);
+    final iconPath = isIran ? 'assets/iran.ico' : globIcon;
+    updateSysTrayIcon(tooltip, iconPath);
     debugPrint('Country => $country');
-  }
-
-  Future<void> _initSystemTray() async {
-    // We first init the systray menu
-    await systemTray.initSystemTray(
-      title: "system tray",
-      iconPath: 'assets/loading.ico',
-    );
-
-    // create context menu
-    final Menu menu = Menu();
-    await menu.buildFrom([
-      MenuItemLable(label: 'Show', onClicked: (menuItem) => appWindow.show()),
-      MenuItemLable(label: 'Hide', onClicked: (menuItem) => appWindow.hide()),
-      MenuItemLable(
-        label: 'Refresh',
-        onClicked: (menuItem) {
-          onRefreshButtonClick();
-        },
-      ),
-      MenuItemLable(
-        label: 'Exit',
-        onClicked: (menuItem) {
-          systemTray.destroy();
-          exit(0);
-        },
-      ),
-    ]);
-
-    // set context menu
-    await systemTray.setContextMenu(menu);
-
-    // handle system tray event
-    systemTray.registerSystemTrayEventHandler((eventName) {
-      debugPrint("eventName: $eventName");
-      if (eventName == kSystemTrayEventClick) {
-        appWindow.show();
-      } else if (eventName == kSystemTrayEventRightClick) {
-        systemTray.popUpContextMenu();
-      }
-    });
   }
 }

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ir_net/data/sharedpreferences.dart';
+import 'package:ir_net/data/shared_preferences.dart';
 import 'package:ir_net/views/ip_stat.dart';
 import 'package:ir_net/views/leak.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
