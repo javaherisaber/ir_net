@@ -45,3 +45,4 @@ flutter pub run msix:create
 - Speed test
 - Shortcuts to important screens of windows (eg. Network adapters)
 - Retry one more time if there was a leak found during switch to new network
+- Reset ip lookup result when there is no network

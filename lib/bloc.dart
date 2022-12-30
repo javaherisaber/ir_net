@@ -20,6 +20,7 @@ class AppBloc with AppSystemTray {
   final _ipLookupResult = BehaviorSubject();
   final _clearLeakInput = LiveEvent();
   final _leakChecklist = BehaviorSubject<List<LeakItem>>();
+  final _localNetwork = BehaviorSubject<LocalNetworksResult>();
 
   bool _isPingingGoogle = false;
   bool _foundALeakedSite = false;
@@ -30,6 +31,7 @@ class AppBloc with AppSystemTray {
   Stream get ipLookupResult => _ipLookupResult.stream;
   Stream get clearLeakInput => _clearLeakInput.stream;
   Stream<List<LeakItem>> get leakChecklist => _leakChecklist.stream;
+  Stream<LocalNetworksResult> get localNetwork => _localNetwork.stream;
 
   void onLeakInputChanged(String value) {
     _leakInput = value;
@@ -186,6 +188,8 @@ class AppBloc with AppSystemTray {
   }
 
   Future<void> _checkProxySettings() async {
+    final localNetwork = await AppCmd.getLocalNetworkInfo();
+    _localNetwork.value = localNetwork;
     final proxyResult = await AppCmd.getProxySettings();
     var shouldRefreshLeakedSites = false;
     if ((proxyResult.proxyEnabled && _proxyServer != proxyResult.proxyServer) ||

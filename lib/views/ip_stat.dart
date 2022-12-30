@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:ir_net/main.dart';
+import 'package:ir_net/utils/cmd.dart';
 import 'package:latlng/latlng.dart';
 import 'package:map/map.dart';
 
@@ -41,11 +42,49 @@ class _IpStatViewState extends State<IpStatView> {
         const SizedBox(height: 16),
         map(),
         const SizedBox(height: 16),
-        ipAddress(),
-        const SizedBox(height: 32),
+        networkInfo(),
+        const SizedBox(height: 24),
         lookupResult(),
       ],
     );
+  }
+
+  Widget networkInfo() {
+    return StreamBuilder<LocalNetworksResult>(
+      stream: bloc.localNetwork,
+      builder: (context, snapshot) {
+        final data = snapshot.data;
+        if (data == null) {
+          return const SizedBox.shrink();
+        }
+        return SizedBox(
+          width: 400,
+          child: Column(
+            children: [
+              ipAddress(),
+              coloredText('DNS records:          ${data.dns[0]}, ${data.dns[1]}', Colors.deepOrange),
+
+                coloredText(
+                  'Local IP Address:    ${_localIpText(data.interfaces)}',
+                  Colors.black12,
+                )
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String _localIpText(List<NetworkInterface> interfaces) {
+    var result = '';
+    for (var i = 0; i < interfaces.length; i++) {
+      final inf = interfaces[i];
+      if (interfaces.length > 1 && i > 0 && i < interfaces.length) {
+        result += '\n                               ';
+      }
+      result += '${inf.ipv4} (${inf.interfaceName})';
+    }
+    return result;
   }
 
   Widget ipAddress() {
@@ -56,12 +95,17 @@ class _IpStatViewState extends State<IpStatView> {
         if (data == null) {
           return const SizedBox.shrink();
         }
-        return Container(
-          color: Colors.black12,
-          padding: const EdgeInsets.all(8),
-          child: Text('Your IP Address:   ${data['query']}'),
-        );
+        return coloredText('Public IP address:   ${data['query']}', Colors.blue.shade500);
       },
+    );
+  }
+
+  Widget coloredText(String value, Color color) {
+    return Container(
+      color: Colors.black12,
+      width: double.infinity,
+      padding: const EdgeInsets.all(8),
+      child: Text(value),
     );
   }
 
@@ -99,7 +143,7 @@ class _IpStatViewState extends State<IpStatView> {
       builder: (context, snapshot) {
         final data = snapshot.data;
         if (data == null) {
-          return Text('No data');
+          return const Text('No data');
         }
         return Text('${data['country']}, ${data['city']}');
       },
