@@ -62,12 +62,8 @@ class _IpStatViewState extends State<IpStatView> {
           child: Column(
             children: [
               ipAddress(),
-              coloredText('DNS records:          ${data.dns[0]}, ${data.dns[1]}', Colors.deepOrange),
-
-                coloredText(
-                  'Local IP Address:    ${_localIpText(data.interfaces)}',
-                  Colors.black12,
-                )
+              coloredText('DNS records:          ${data.dns[0]}, ${data.dns[1]}'),
+              coloredText('Local IP Address:    ${_localIpText(data.interfaces)}')
             ],
           ),
         );
@@ -95,12 +91,12 @@ class _IpStatViewState extends State<IpStatView> {
         if (data == null) {
           return const SizedBox.shrink();
         }
-        return coloredText('Public IP address:   ${data['query']}', Colors.blue.shade500);
+        return coloredText('Public IP address:   ${data['query']}');
       },
     );
   }
 
-  Widget coloredText(String value, Color color) {
+  Widget coloredText(String value) {
     return Container(
       color: Colors.black12,
       width: double.infinity,
