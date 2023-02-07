@@ -170,7 +170,7 @@ class AppBloc with AppSystemTray {
     http.Response response;
     try {
       final ipv4 = (await _client.get(Uri.parse("https://api.ipify.org"))).body;
-      final uri = Uri.parse('http://ip-api.com/json/$ipv4?fields=1060825');
+      final uri = Uri.parse('http://ip-api.com/json/$ipv4?fields=1057497');
       response = await _client.get(uri).timeout(const Duration(seconds: 10));
     } on TimeoutException {
       _checkNetworkConnectivity();
