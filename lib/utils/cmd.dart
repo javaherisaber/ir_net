@@ -59,7 +59,7 @@ class AppCmd {
           }
         }
       }
-      if (dns1.isNotEmpty && dns2.isEmpty) {
+      if (dns1.isNotEmpty && dns2.isEmpty && !line.contains(':')) {
         dns2 = line.trimLeft();
       }
       if (dns2.isEmpty && line.contains('DNS Servers')) {
