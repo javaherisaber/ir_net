@@ -43,7 +43,7 @@ class _IpStatViewState extends State<IpStatView> {
         map(),
         const SizedBox(height: 16),
         networkInfo(),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
         lookupResult(),
       ],
     );
@@ -78,7 +78,11 @@ class _IpStatViewState extends State<IpStatView> {
       if (interfaces.length > 1 && i > 0 && i < interfaces.length) {
         result += '\n                               ';
       }
-      result += '${inf.ipv4} (${inf.interfaceName})';
+      var interfaceName = inf.interfaceName;
+      if (interfaceName.length > 10) {
+        interfaceName = interfaceName.substring(0, 5) + "..." + interfaceName.substring(interfaceName.length - 5);
+      }
+      result += '${inf.ipv4} ($interfaceName)';
     }
     return result;
   }
@@ -122,6 +126,9 @@ class _IpStatViewState extends State<IpStatView> {
           }
         }
         for (MapEntry e in (data).entries) {
+          if (e.key == 'lat' || e.key == 'lon' || e.key == 'query' || e.key == 'continent') {
+            continue;
+          }
           final charCode = '.'.codeUnitAt(0);
           final dots = String.fromCharCodes(
             List.generate(longestLength - e.key.toString().length, (index) => charCode),

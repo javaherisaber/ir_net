@@ -32,7 +32,7 @@ class _HomePageState extends State<HomePage> {
                   IpStatView(),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
