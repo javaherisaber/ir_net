@@ -178,6 +178,9 @@ class AppBloc with AppSystemTray {
     } on SocketException catch (ex) {
       _checkNetworkRefuseException(ex);
       return;
+    } on Exception {
+      _checkNetworkConnectivity();
+      return;
     }
     final json = jsonDecode(response.body);
     if (json['lat'] != null && json['lon'] != null) {
