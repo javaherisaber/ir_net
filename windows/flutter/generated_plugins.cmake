@@ -8,6 +8,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   system_tray
   url_launcher_windows
   win_toast
+  windows_single_instance
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST

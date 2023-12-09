@@ -11,6 +11,7 @@
 #include <system_tray/system_tray_plugin.h>
 #include <url_launcher_windows/url_launcher_windows.h>
 #include <win_toast/win_toast_plugin.h>
+#include <windows_single_instance/windows_single_instance_plugin.h>
 
 void RegisterPlugins(flutter::PluginRegistry* registry) {
   ConnectivityPlusWindowsPluginRegisterWithRegistrar(
@@ -23,4 +24,6 @@ void RegisterPlugins(flutter::PluginRegistry* registry) {
       registry->GetRegistrarForPlugin("UrlLauncherWindows"));
   WinToastPluginRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("WinToastPlugin"));
+  WindowsSingleInstancePluginRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("WindowsSingleInstancePlugin"));
 }
