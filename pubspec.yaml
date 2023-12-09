@@ -3,8 +3,8 @@ description: Windows tool to show if user is connected to Iran internet or a VPN
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 environment:
-  sdk: ">=2.18.4 <3.0.0"
-  flutter: "3.3.7"
+  sdk: ">=3.2.3 <4.0.0"
+  flutter: "3.16.3"
 
 dependencies:
   flutter:
@@ -17,7 +17,7 @@ dependencies:
   cached_network_image: ^3.2.1
   rxdart: ^0.27.5
   launch_at_startup: ^0.0.1
-  package_info_plus: ^1.4.3+1
+  package_info_plus: ^4.2.0
   touch_mouse_behavior: ^1.0.0
   url_launcher: ^6.1.5
   shared_preferences: ^2.0.15

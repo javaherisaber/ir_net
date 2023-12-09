@@ -35,15 +35,15 @@ mixin AppSystemTray {
     );
     final Menu menu = Menu();
     await menu.buildFrom([
-      MenuItemLable(label: 'Show', onClicked: (menuItem) => _appWindow.show()),
-      MenuItemLable(label: 'Hide', onClicked: (menuItem) => _appWindow.hide()),
-      MenuItemLable(
+      MenuItemLabel(label: 'Show', onClicked: (menuItem) => _appWindow.show()),
+      MenuItemLabel(label: 'Hide', onClicked: (menuItem) => _appWindow.hide()),
+      MenuItemLabel(
         label: 'Refresh',
         onClicked: (menuItem) {
           onSystemTrayRefreshButtonClick();
         },
       ),
-      MenuItemLable(
+      MenuItemLabel(
         label: 'Exit',
         onClicked: (menuItem) {
           _systemTray.destroy();
