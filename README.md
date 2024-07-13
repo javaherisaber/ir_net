@@ -1,6 +1,6 @@
 # ir_net
 
-Windows tool to show if user is connected to Iran internet or a VPN
+Windows tool to show VPN connection details
 
 <img src="screenshot.png" width="626" height="455">
 
