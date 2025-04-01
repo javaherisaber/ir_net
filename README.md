@@ -14,11 +14,15 @@ Windows tool to show VPN connection details
 - Update status when there is a network change
 - Connect through proxy vpn types (eg. ShadowSocks, VMess, ...)
 
-## Commands
-Create .msix file:
+## How to build windows installer
+1. Build .exe file:
 ```bat
-flutter pub run msix:create
+flutter build windows
 ```
+
+2. Open `Inno setup compiler` app and select .iss file from inno/Inno installer scrip.iss
+3. Press on run button
+4. Output .exe file will be in the `inno/Output` directory 
 
 ## TODO
 - Add alternative api service
