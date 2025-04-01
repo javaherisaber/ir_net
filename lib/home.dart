@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:ir_net/data/shared_preferences.dart';
+import 'package:ir_net/views/connection.dart';
 import 'package:ir_net/views/ip_stat.dart';
 import 'package:ir_net/views/leak.dart';
-import 'package:launch_at_startup/launch_at_startup.dart';
+import 'package:ir_net/views/options.dart';
 
 import 'main.dart';
 
@@ -23,27 +23,22 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Row(
+              const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   LeakView(),
                   SizedBox(width: 64),
                   IpStatView(),
                 ],
               ),
               const SizedBox(height: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SizedBox(
-                    width: 400,
-                    child: showLeakInSysTray(),
-                  ),
-                  SizedBox(
-                    width: 300,
-                    child: launchAtStartup(),
-                  ),
+                  AppOptions(),
+                  SizedBox(width: 64),
+                  Connection()
                 ],
               ),
               const SizedBox(height: 24),
@@ -59,44 +54,6 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget launchAtStartup() {
-    return FutureBuilder<bool>(
-      future: LaunchAtStartup.instance.isEnabled(),
-      builder: (context, snapshot) {
-        final value = snapshot.data ?? false;
-        return CheckboxListTile(
-          title: const Text('Launch on windows startup?'),
-          value: value,
-          onChanged: (enabled) {
-            if (enabled == true) {
-              LaunchAtStartup.instance.enable();
-            } else {
-              LaunchAtStartup.instance.disable();
-            }
-            setState(() {});
-          },
-        );
-      },
-    );
-  }
-
-  Widget showLeakInSysTray() {
-    return FutureBuilder<bool>(
-      future: AppSharedPreferences.showLeakInSysTray,
-      builder: (context, snapshot) {
-        final value = snapshot.data ?? false;
-        return CheckboxListTile(
-          title: const Text('Show leak detection on system tray icon?'),
-          value: value,
-          onChanged: (enabled) async {
-            await AppSharedPreferences.setShowLeakInSysTray(enabled ?? false);
-            setState(() {});
-          },
-        );
-      },
     );
   }
 

@@ -4,11 +4,13 @@ import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_speedtest/flutter_speedtest.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:ir_net/data/leak_item.dart';
 import 'package:ir_net/data/shared_preferences.dart';
 import 'package:ir_net/utils/cmd.dart';
+import 'package:ir_net/utils/http.dart';
 import 'package:ir_net/utils/system_tray.dart';
 import 'package:latlng/latlng.dart';
 import 'package:live_event/live_event.dart';
@@ -21,6 +23,10 @@ class AppBloc with AppSystemTray {
   final _clearLeakInput = LiveEvent();
   final _leakChecklist = BehaviorSubject<List<LeakItem>>();
   final _localNetwork = BehaviorSubject<LocalNetworksResult>();
+  final _ping = BehaviorSubject<double?>();
+  final _downloadSpeed = BehaviorSubject<double?>();
+  final _uploadSpeed = BehaviorSubject<double?>();
+  final _speedTestStatus = BehaviorSubject<String>();
 
   bool _isPingingGoogle = false;
   bool _foundALeakedSite = false;
@@ -32,6 +38,17 @@ class AppBloc with AppSystemTray {
   Stream get clearLeakInput => _clearLeakInput.stream;
   Stream<List<LeakItem>> get leakChecklist => _leakChecklist.stream;
   Stream<LocalNetworksResult> get localNetwork => _localNetwork.stream;
+  Stream<double?> get ping => _ping.stream;
+  Stream<double?> get downloadSpeed => _downloadSpeed.stream;
+  Stream<double?> get uploadSpeed => _uploadSpeed.stream;
+  Stream<String> get speedTestStatus => _speedTestStatus.stream;
+
+  final speedtest = FlutterSpeedtest(
+    baseUrl: 'http://speedtest.jaosing.com:8080',
+    pathDownload: '/download',
+    pathUpload: '/upload',
+    pathResponseTime: '/ping',
+  );
 
   void onLeakInputChanged(String value) {
     _leakInput = value;
@@ -110,7 +127,7 @@ class AppBloc with AppSystemTray {
         item.status = LeakStatus.failed;
       }
       debugPrint('leak detection for $url => ${response.bodyBytes.length ~/ 1024} Kilobytes');
-    } on Exception catch(ex) {
+    } on Exception catch (ex) {
       item.status = LeakStatus.failed;
       _checkNetworkRefuseException(ex);
     }
@@ -131,10 +148,15 @@ class AppBloc with AppSystemTray {
         await _checkProxySettings();
         _checkIpLocation();
         _verifyLeakedSites();
+        _checkPing();
       } else {
         setSystemTrayStatusToOffline();
       }
     });
+  }
+
+  void _checkPing() async {
+    _ping.value = await HttpUtils.measureHttpPing();
   }
 
   void _runIpCheckInfinitely() async {
@@ -154,14 +176,15 @@ class AppBloc with AppSystemTray {
       _isPingingGoogle = false;
       _checkNetworkConnectivity();
       return;
-    } on SocketException catch(ex) {
+    } on SocketException catch (ex) {
       _checkNetworkRefuseException(ex);
     }
     _isPingingGoogle = false;
   }
 
   void _checkNetworkRefuseException(Exception ex) {
-    if (ex is SocketException && ex.message.startsWith('The remote computer refused the network connection.')) {
+    if (ex is SocketException &&
+        ex.message.startsWith('The remote computer refused the network connection.')) {
       _proxyServer = null;
     }
   }
@@ -222,6 +245,31 @@ class AppBloc with AppSystemTray {
     }
   }
 
+  void onConnectionTestClick() async {
+    _downloadSpeed.value = 0;
+    _uploadSpeed.value = 0;
+    _speedTestStatus.value = 'Running';
+    speedtest.getDataspeedtest(
+      downloadOnProgress: ((percent, transferRate) {
+        _downloadSpeed.value = transferRate;
+      }),
+      uploadOnProgress: ((percent, transferRate) {
+        _uploadSpeed.value = transferRate;
+      }),
+      progressResponse: ((responseTime, jitter) {
+        // nothing to do
+      }),
+      onError: ((errorMessage) {
+        _downloadSpeed.value = 0;
+        _uploadSpeed.value = 0;
+        _speedTestStatus.value = 'Error';
+      }),
+      onDone: () {
+        _speedTestStatus.value = 'Done';
+      },
+    );
+  }
+
   void onExitClick() {
     destroySystemTray();
     exit(0);
@@ -238,6 +286,7 @@ class AppBloc with AppSystemTray {
 
   void _handleRefresh() async {
     await _checkProxySettings();
+    _checkPing();
     _pingGoogle();
     _checkIpLocation();
     _verifyLeakedSites();

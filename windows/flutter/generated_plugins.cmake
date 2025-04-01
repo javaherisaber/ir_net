@@ -3,11 +3,13 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  connectivity_plus_windows
+  connectivity_plus
   launch_at_startup
+  screen_retriever
   system_tray
   url_launcher_windows
   win_toast
+  window_manager
   windows_single_instance
 )
 
