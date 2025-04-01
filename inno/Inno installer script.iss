@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "IRNet"
-#define MyAppVersion "1.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "BuildToApp, Inc."
 #define MyAppURL "https://www.buildtoapp.com/"
 #define MyAppExeName "ir_net.exe"
@@ -28,7 +28,7 @@ ArchitecturesAllowed=x64compatible
 ; the 64-bit view of the registry.
 ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
-LicenseFile=C:\Workspace\Flutter\ir_net\signing\installer license.txt
+LicenseFile=C:\Workspace\Flutter\ir_net\inno\installer license.txt
 ; Uncomment the following line to run in non administrative install mode (install for current user only.)
 ;PrivilegesRequired=lowest
 OutputBaseFilename=mysetup
