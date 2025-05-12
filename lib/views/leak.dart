@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ir_net/data/leak_item.dart';
 import 'package:ir_net/main.dart';
+import 'package:ir_net/views/kerio_login.dart';
 import 'package:touch_mouse_behavior/touch_mouse_behavior.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -41,6 +42,7 @@ class _LeakViewState extends State<LeakView> {
         ),
         const SizedBox(height: 16),
         items(),
+        const KerioLoginView()
       ],
     );
   }
@@ -55,7 +57,7 @@ class _LeakViewState extends State<LeakView> {
         }
         return SizedBox(
           width: 400,
-          height: 400,
+          height: 250,
           child: TouchMouseScrollable(
             child: ListView.builder(
               itemCount: data.length,

@@ -54,6 +54,9 @@ Future<void> initSharedPreferences() async {
     }
     await AppSharedPreferences.setIsLeakPrePopulated(true);
   }
+  if ((await AppSharedPreferences.kerioIP) == null) {
+    await AppSharedPreferences.setKerioIP('172.18.18.1:4080');
+  }
 }
 
 Future<void> initLaunchAtStartup() async {
