@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:ir_net/data/shared_preferences.dart';
 
-class KerioLoginPage extends StatefulWidget {
+class KerioLoginView extends StatefulWidget {
+  const KerioLoginView({super.key});
+
   @override
-  _KerioLoginPageState createState() => _KerioLoginPageState();
+  State<KerioLoginView> createState() => _KerioLoginViewState();
 }
 
-class _KerioLoginPageState extends State<KerioLoginPage> {
+class _KerioLoginViewState extends State<KerioLoginView> {
   final TextEditingController _ipController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final _storage = FlutterSecureStorage();
 
   @override
   void initState() {
@@ -20,19 +21,21 @@ class _KerioLoginPageState extends State<KerioLoginPage> {
   }
 
   Future<void> _attemptAutoLogin() async {
-    final ip = await _storage.read(key: 'kerio_ip');
-    final username = await _storage.read(key: 'kerio_username');
-    final password = await _storage.read(key: 'kerio_password');
+    final ip = await AppSharedPreferences.kerioIP;
+    final username = await AppSharedPreferences.kerioUsername;
+    final password = await AppSharedPreferences.kerioPassword;
+    final enabled = await AppSharedPreferences.kerioAutoLogin;
 
-    if (ip != null && username != null && password != null) {
+    _ipController.text = ip ?? '';
+    if (ip != null && username != null && password != null && enabled == true) {
       _ipController.text = ip;
       _usernameController.text = username;
       _passwordController.text = password;
-      _login();
+      _login(true);
     }
   }
 
-  void _login() async {
+  void _login(bool auto) async {
     final ip = _ipController.text;
     final username = _usernameController.text;
     final password = _passwordController.text;
@@ -43,9 +46,9 @@ class _KerioLoginPageState extends State<KerioLoginPage> {
     }
 
     // Save credentials for auto-login
-    await _storage.write(key: 'kerio_ip', value: ip);
-    await _storage.write(key: 'kerio_username', value: username);
-    await _storage.write(key: 'kerio_password', value: password);
+    await AppSharedPreferences.setKerioIP(ip);
+    await AppSharedPreferences.setKerioUsername(username);
+    await AppSharedPreferences.setKerioPassword(password);
 
     final url = 'http://$ip/internal/dologin.php';
     final response = await http.post(
@@ -56,11 +59,11 @@ class _KerioLoginPageState extends State<KerioLoginPage> {
       },
     );
 
-    if (response.statusCode == 200) {
-      _showMessage('Login successful');
-    } else {
-      _showMessage('Login failed');
+    if (auto) {
+      return;
     }
+
+    _showMessage('Login request sent'); // todo: handle failure case
   }
 
   void _showMessage(String message) {
@@ -71,7 +74,7 @@ class _KerioLoginPageState extends State<KerioLoginPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('OK'),
+            child: const Text('OK'),
           ),
         ],
       ),
@@ -80,37 +83,124 @@ class _KerioLoginPageState extends State<KerioLoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Kerio Login'),
+    return SizedBox(
+      width: 400,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          ipInput(),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: username(),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: password(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          loginRow()
+        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: _ipController,
-              decoration: InputDecoration(labelText: 'Kerio Login Page IP'),
-              keyboardType: TextInputType.url,
-            ),
-            TextField(
-              controller: _usernameController,
-              decoration: InputDecoration(labelText: 'Username'),
-            ),
-            TextField(
-              controller: _passwordController,
-              decoration: InputDecoration(labelText: 'Password'),
-              obscureText: true,
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _login,
-              child: Text('Login'),
-            ),
-          ],
+    );
+  }
+
+  Widget ipInput() {
+    return TextField(
+      controller: _ipController,
+      decoration: InputDecoration(
+        focusedBorder: const OutlineInputBorder(
+          borderSide: BorderSide(color: Colors.green),
+        ),
+        enabledBorder: const OutlineInputBorder(
+          borderSide: BorderSide(color: Colors.blue),
+        ),
+        hintText: 'Kerio login page IP',
+        hintStyle: const TextStyle(color: Colors.black38),
+        suffixIcon: IconButton(
+          onPressed: null,
+          icon: Image.asset('assets/kerio.png', width: 24, height: 24),
         ),
       ),
+      keyboardType: TextInputType.url,
+    );
+  }
+
+  Widget username() {
+    return TextField(
+      controller: _usernameController,
+      decoration: const InputDecoration(
+        focusedBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: Colors.green),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: Colors.blue),
+        ),
+        hintText: 'Username',
+        hintStyle: TextStyle(color: Colors.black38),
+      ),
+    );
+  }
+
+  Widget password() {
+    return TextField(
+      controller: _passwordController,
+      decoration: const InputDecoration(
+        focusedBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: Colors.green),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: Colors.blue),
+        ),
+        hintText: 'Password',
+        hintStyle: TextStyle(color: Colors.black38),
+      ),
+      obscureText: true,
+    );
+  }
+
+  Widget loginRow() {
+    return Row(
+      children: [
+        Expanded(
+          flex: 2,
+          child: ElevatedButton(
+            onPressed: () => _login(false),
+            style: ElevatedButton.styleFrom(
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+              backgroundColor: Colors.blue,
+            ),
+            child: const Text('Login', style: TextStyle(color: Colors.white)),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: autoLoginOption(),
+        )
+      ],
+    );
+  }
+
+  Widget autoLoginOption() {
+    return FutureBuilder<bool>(
+      future: AppSharedPreferences.kerioAutoLogin,
+      builder: (context, snapshot) {
+        final value = snapshot.data ?? false;
+        return CheckboxListTile(
+          title: const Text('Auto?'),
+          value: value,
+          onChanged: (enabled) async {
+            await AppSharedPreferences.setKerioAutoLogin(enabled ?? false);
+            setState(() {});
+          },
+        );
+      },
     );
   }
 }
