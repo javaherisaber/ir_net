@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:ir_net/data/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class KerioLoginView extends StatefulWidget {
   const KerioLoginView({super.key});
@@ -121,7 +122,15 @@ class _KerioLoginViewState extends State<KerioLoginView> {
         hintText: 'Kerio login page IP',
         hintStyle: const TextStyle(color: Colors.black38),
         suffixIcon: IconButton(
-          onPressed: null,
+          onPressed: () {
+            final url = _ipController.text.trim();
+            if (url.isNotEmpty) {
+              final uri = Uri.tryParse(url.startsWith('http') ? url : 'http://$url');
+              if (uri != null) {
+                launchUrl(url);
+              }
+            }
+          },
           icon: Image.asset('assets/kerio.png', width: 24, height: 24),
         ),
       ),
