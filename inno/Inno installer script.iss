@@ -31,7 +31,7 @@ DisableProgramGroupPage=yes
 LicenseFile=C:\Workspace\Flutter\ir_net\inno\installer license.txt
 ; Uncomment the following line to run in non administrative install mode (install for current user only.)
 ;PrivilegesRequired=lowest
-OutputBaseFilename=mysetup
+OutputBaseFilename=IRNet_windows_setup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
