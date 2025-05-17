@@ -258,7 +258,7 @@ class AppBloc with AppSystemTray {
       await AppSharedPreferences.setKerioLowBalanceToastDate(today.toIso8601String());
     }
 
-    if (remaining < 1073741824 * 10 && lowBalanceToastCount < 2) {
+    if (remaining < 1073741824 && lowBalanceToastCount < 2) {
       WinToast.instance().showToast(type: ToastType.text01, title: 'Less than 1 GB is left in your kerio account!');
       await AppSharedPreferences.setKerioLowBalanceToastCount(lowBalanceToastCount + 1);
       await AppSharedPreferences.setKerioLowBalanceToastDate(today.toIso8601String());
