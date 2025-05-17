@@ -1,3 +1,7 @@
+# 1.2.2
+- Add Kerio balance views
+- Show notification when Kerio balance is less than 1 GB
+
 # 1.2.1
 - Open kerio control page in the browser by clicking on end icon
 
