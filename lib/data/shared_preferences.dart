@@ -33,6 +33,22 @@ class AppSharedPreferences {
     (await _preference).setBool(_keyKerioAutoLogin, value);
   }
 
+  static Future<int> get kerioLowBalanceToastCount async {
+    return (await _preference).getInt(_keyKerioLowBalanceToastCount) ?? 0;
+  }
+
+  static Future<void> setKerioLowBalanceToastCount(int value) async {
+    (await _preference).setInt(_keyKerioLowBalanceToastCount, value);
+  }
+
+  static Future<String?> get kerioLowBalanceToastDate async {
+    return (await _preference).getString(_keyKerioLowBalanceToastDate);
+  }
+
+  static Future<void> setKerioLowBalanceToastDate(String value) async {
+    (await _preference).setString(_keyKerioLowBalanceToastDate, value);
+  }
+
   static Future<bool> get showLeakInSysTray async {
     return (await _preference).getBool(_keyShowLeakInSysTray) ?? true;
   }
@@ -82,4 +98,6 @@ class AppSharedPreferences {
   static const _keyKerioUsername = 'kerioUsername';
   static const _keyKerioPassword = 'kerioPassword';
   static const _keyKerioAutoLogin = 'kerioAutoLogin';
+  static const _keyKerioLowBalanceToastCount = 'kerioLowBalanceToastCount';
+  static const _keyKerioLowBalanceToastDate = 'kerioLowBalanceToastDate';
 }

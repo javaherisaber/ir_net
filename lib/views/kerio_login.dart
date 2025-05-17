@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:ir_net/data/shared_preferences.dart';
+import 'package:ir_net/utils/kerio.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class KerioLoginView extends StatefulWidget {
@@ -89,23 +90,51 @@ class _KerioLoginViewState extends State<KerioLoginView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          ipInput(),
+          ipAndBalanceRow(),
           const SizedBox(height: 4),
-          Row(
-            children: [
-              Expanded(
-                child: username(),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: password(),
-              ),
-            ],
-          ),
+          credentialsRow(),
           const SizedBox(height: 8),
           loginRow()
         ],
       ),
+    );
+  }
+
+  Widget ipAndBalanceRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: ipInput(),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: balance(),
+        ),
+      ],
+    );
+  }
+
+  Widget balance() {
+    return FutureBuilder(
+      future: KerioUtils.getAccountBalance(),
+      builder: (context, snapshot) {
+        var (total, remaining) = snapshot.data ?? (0, 0);
+        var totalFormatted = total == 0 ? '--' : KerioUtils.formatBytes(total);
+        var remainingFormatted = remaining == 0 ? '--' : KerioUtils.formatBytes(remaining);
+        return Container(
+          padding: const EdgeInsets.only(left: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Remaining =  $remainingFormatted',
+                style: TextStyle(color: remaining < 1073741824 ? Colors.red : Colors.black),
+              ),
+              Text('Total          =  $totalFormatted'),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -135,6 +164,20 @@ class _KerioLoginViewState extends State<KerioLoginView> {
         ),
       ),
       keyboardType: TextInputType.url,
+    );
+  }
+
+  Widget credentialsRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: username(),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: password(),
+        ),
+      ],
     );
   }
 

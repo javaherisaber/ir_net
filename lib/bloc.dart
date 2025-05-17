@@ -17,6 +17,8 @@ import 'package:live_event/live_event.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:win_toast/win_toast.dart';
 
+import 'utils/kerio.dart';
+
 class AppBloc with AppSystemTray {
   final _latLng = StreamController<LatLng>();
   final _ipLookupResult = BehaviorSubject();
@@ -58,6 +60,7 @@ class AppBloc with AppSystemTray {
     initSystemTray();
     _pingGoogle();
     _runIpCheckInfinitely();
+    _runKerioCheckInfinitely();
     _subscribeConnectivityChange();
     _initializeLeakChecklist();
   }
@@ -167,6 +170,13 @@ class AppBloc with AppSystemTray {
     }
   }
 
+  void _runKerioCheckInfinitely() async {
+    while (true) {
+      _checkKerioBalance();
+      await Future.delayed(const Duration(seconds: 60));
+    }
+  }
+
   void _pingGoogle() async {
     try {
       _isPingingGoogle = true;
@@ -230,6 +240,28 @@ class AppBloc with AppSystemTray {
     }
     if (shouldRefreshLeakedSites) {
       _verifyLeakedSites();
+    }
+  }
+
+  void _checkKerioBalance() async {
+    final (total, remaining) = await KerioUtils.getAccountBalance();
+    var lowBalanceToastCount = await AppSharedPreferences.kerioLowBalanceToastCount;
+    var lastToastDate = await AppSharedPreferences.kerioLowBalanceToastDate;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    if (lastToastDate == null || DateTime.parse(lastToastDate).isBefore(today)) {
+      // New day, reset count
+      lowBalanceToastCount = 0;
+      await AppSharedPreferences.setKerioLowBalanceToastCount(0);
+      await AppSharedPreferences.setKerioLowBalanceToastDate(today.toIso8601String());
+    }
+
+    if (remaining < 1073741824 * 10 && lowBalanceToastCount < 2) {
+      WinToast.instance().showToast(type: ToastType.text01, title: 'Less than 1 GB is left in your kerio account!');
+      await AppSharedPreferences.setKerioLowBalanceToastCount(lowBalanceToastCount + 1);
+      await AppSharedPreferences.setKerioLowBalanceToastDate(today.toIso8601String());
     }
   }
 
