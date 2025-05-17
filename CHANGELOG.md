@@ -1,3 +1,6 @@
+# 1.2.1
+- Open kerio control page in the browser by clicking on end icon
+
 # 1.2.0
 - Integrate Kerio-Control login page
 - Show leaks on system tray by default
