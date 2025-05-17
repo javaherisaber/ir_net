@@ -127,7 +127,7 @@ class _KerioLoginViewState extends State<KerioLoginView> {
             if (url.isNotEmpty) {
               final uri = Uri.tryParse(url.startsWith('http') ? url : 'http://$url');
               if (uri != null) {
-                launchUrl(url);
+                launchUrl(uri);
               }
             }
           },
