@@ -2,7 +2,7 @@
 
 Windows tool to show VPN connection details
 
-<img src="screenshot.png" width="626" height="455">
+<img src="https://github.com/user-attachments/assets/0146de59-bc97-4232-a7fd-eae9389dd87e" width="626" height="455">
 
 ## Features
 - Show location of connection in map
@@ -13,6 +13,8 @@ Windows tool to show VPN connection details
 - Show details of your ISP
 - Update status when there is a network change
 - Connect through proxy vpn types (eg. ShadowSocks, VMess, ...)
+- Auto Connect to Kerio Network
+- show usage and statistics of Kerio network
 
 ## How to build windows installer
 1. Build .exe file:
