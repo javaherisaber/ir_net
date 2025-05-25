@@ -14,7 +14,7 @@ Windows tool to show VPN connection details
 - Update status when there is a network change
 - Connect through proxy vpn types (eg. ShadowSocks, VMess, ...)
 - Auto Connect to Kerio Network
-- show usage and statistics of Kerio network
+- Show usage and statistics of Kerio network
 
 ## How to build windows installer
 1. Build .exe file:
