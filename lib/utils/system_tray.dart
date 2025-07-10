@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:system_tray/system_tray.dart';
+import 'package:ir_net/utils/platform_icons.dart';
 
 mixin AppSystemTray {
   final SystemTray _systemTray = SystemTray();
@@ -15,12 +16,12 @@ mixin AppSystemTray {
   }
 
   void setSystemTrayStatusToOffline() {
-    _systemTray.setImage('assets/offline.ico');
+    _systemTray.setImage(PlatformIcons.offlineIcon);
     _systemTray.setToolTip('IRNet: OFFLINE');
   }
 
   void setSystemTrayStatusToNetworkError() {
-    _systemTray.setImage('assets/network_error.ico');
+    _systemTray.setImage(PlatformIcons.networkErrorIcon);
     _systemTray.setToolTip('IRNet: Network error');
   }
 
@@ -31,7 +32,7 @@ mixin AppSystemTray {
   Future<void> initSystemTray() async {
     await _systemTray.initSystemTray(
       title: "system tray",
-      iconPath: 'assets/loading.ico',
+      iconPath: PlatformIcons.loadingIcon,
     );
     final Menu menu = Menu();
     await menu.buildFrom([

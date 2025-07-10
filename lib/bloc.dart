@@ -11,11 +11,11 @@ import 'package:ir_net/data/leak_item.dart';
 import 'package:ir_net/data/shared_preferences.dart';
 import 'package:ir_net/utils/cmd.dart';
 import 'package:ir_net/utils/http.dart';
+import 'package:ir_net/utils/platform_icons.dart';
 import 'package:ir_net/utils/system_tray.dart';
 import 'package:latlng/latlng.dart';
 import 'package:live_event/live_event.dart';
 import 'package:rxdart/rxdart.dart';
-import 'package:win_toast/win_toast.dart';
 
 import 'utils/kerio.dart';
 
@@ -77,17 +77,50 @@ class AppBloc with AppSystemTray {
 
   void onAddLeakItemClick() async {
     if (_leakInput == null || _leakInput?.trim().isEmpty == true) {
-      WinToast.instance().showToast(type: ToastType.text01, title: 'No input entered!');
+      _showNotification('No input entered!');
       return;
     }
     if ((await AppSharedPreferences.leakChecklist).contains(_leakInput)) {
-      WinToast.instance().showToast(type: ToastType.text01, title: 'Repetitive input not allowed!');
+      _showNotification('Repetitive input not allowed!');
       return;
     }
     await AppSharedPreferences.addToLeakChecklist(_leakInput!);
     _updateLeakChecklist();
     _clearLeakInput.fire();
     _leakInput = null;
+  }
+
+  void _showNotification(String message) {
+    if (Platform.isWindows) {
+      // Use Windows toast notifications
+      _showWindowsNotification(message);
+    } else {
+      // Use system tray notification for Linux
+      updateSysTrayIcon('IRNet: $message',
+          Platform.isLinux ? 'assets/notification.png' : 'assets/notification.ico');
+
+      // Restore icon after a delay
+      Future.delayed(const Duration(seconds: 3), () {
+        if (_foundALeakedSite) {
+          setSystemTrayStatusToNetworkError();
+        } else {
+          _updateCountryTrayIcon();
+        }
+      });
+    }
+  }
+
+  void _showWindowsNotification(String message) async {
+    try {
+      // Use dynamic import to avoid issues on Linux
+      if (Platform.isWindows) {
+        final winToast = await import('package:win_toast/win_toast.dart');
+        winToast.WinToast.instance().showToast(
+            type: winToast.ToastType.text01, title: message);
+      }
+    } catch (e) {
+      debugPrint('Error showing Windows notification: $e');
+    }
   }
 
   Future<void> _updateLeakChecklist() async {
@@ -259,7 +292,7 @@ class AppBloc with AppSystemTray {
     }
 
     if (remaining < 1073741824 && lowBalanceToastCount < 2) {
-      WinToast.instance().showToast(type: ToastType.text01, title: 'Less than 1 GB is left in your kerio account!');
+      _showNotification('Less than 1 GB is left in your kerio account!');
       await AppSharedPreferences.setKerioLowBalanceToastCount(lowBalanceToastCount + 1);
       await AppSharedPreferences.setKerioLowBalanceToastDate(today.toIso8601String());
     }
@@ -337,11 +370,13 @@ class AppBloc with AppSystemTray {
     } else {
       tooltip = 'IRNet: $country';
     }
-    var globIcon = 'assets/globe.ico';
+    String globIcon = PlatformIcons.globeIcon;
     if (_foundALeakedSite && (await AppSharedPreferences.showLeakInSysTray)) {
-      globIcon = 'assets/globe_leaked.ico';
+      globIcon = Platform.isLinux ? 'assets/linux/globe_leaked.png' : 'assets/globe_leaked.ico';
     }
-    final iconPath = isIran ? 'assets/iran.ico' : globIcon;
+    final iconPath = isIran ? 
+        (Platform.isLinux ? 'assets/linux/iran.png' : 'assets/iran.ico') : 
+        globIcon;
     updateSysTrayIcon(tooltip, iconPath);
     debugPrint('Country => $country');
   }
