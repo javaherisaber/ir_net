@@ -116,6 +116,7 @@ class _KerioLoginViewState extends State<KerioLoginView> {
 
   Widget balance() {
     return FutureBuilder(
+      key: UniqueKey(), // Add a unique key to force FutureBuilder to refresh
       future: KerioUtils.getAccountBalance(),
       builder: (context, snapshot) {
         var (total, remaining) = snapshot.data ?? (0, 0);
