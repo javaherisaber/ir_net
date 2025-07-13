@@ -1,3 +1,6 @@
+# 1.2.3
+- Update app icon
+
 # 1.2.2
 - Add Kerio balance views
 - Show notification when Kerio balance is less than 1 GB

@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "IRNet"
-#define MyAppVersion "1.2.2"
+#define MyAppVersion "1.2.3"
 #define MyAppPublisher "BuildToApp, Inc."
 #define MyAppURL "https://www.buildtoapp.com/"
 #define MyAppExeName "ir_net.exe"
