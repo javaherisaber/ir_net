@@ -1,0 +1,93 @@
+PODS:
+  - connectivity_plus (0.0.1):
+    - FlutterMacOS
+    - ReachabilitySwift
+  - FlutterMacOS (1.0.0)
+  - FMDB (2.7.12):
+    - FMDB/standard (= 2.7.12)
+  - FMDB/Core (2.7.12)
+  - FMDB/standard (2.7.12):
+    - FMDB/Core
+  - launch_at_startup (0.0.1):
+    - FlutterMacOS
+  - package_info_plus (0.0.1):
+    - FlutterMacOS
+  - path_provider_foundation (0.0.1):
+    - Flutter
+    - FlutterMacOS
+  - ReachabilitySwift (5.2.4)
+  - screen_retriever (0.0.1):
+    - FlutterMacOS
+  - shared_preferences_foundation (0.0.1):
+    - Flutter
+    - FlutterMacOS
+  - sqflite (0.0.2):
+    - FlutterMacOS
+    - FMDB (>= 2.7.5)
+  - system_tray (0.0.1):
+    - FlutterMacOS
+  - url_launcher_macos (0.0.1):
+    - FlutterMacOS
+  - window_manager (0.2.0):
+    - FlutterMacOS
+
+DEPENDENCIES:
+  - connectivity_plus (from `Flutter/ephemeral/.symlinks/plugins/connectivity_plus/macos`)
+  - FlutterMacOS (from `Flutter/ephemeral`)
+  - launch_at_startup (from `Flutter/ephemeral/.symlinks/plugins/launch_at_startup/macos`)
+  - package_info_plus (from `Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos`)
+  - path_provider_foundation (from `Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin`)
+  - screen_retriever (from `Flutter/ephemeral/.symlinks/plugins/screen_retriever/macos`)
+  - shared_preferences_foundation (from `Flutter/ephemeral/.symlinks/plugins/shared_preferences_foundation/darwin`)
+  - sqflite (from `Flutter/ephemeral/.symlinks/plugins/sqflite/macos`)
+  - system_tray (from `Flutter/ephemeral/.symlinks/plugins/system_tray/macos`)
+  - url_launcher_macos (from `Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos`)
+  - window_manager (from `Flutter/ephemeral/.symlinks/plugins/window_manager/macos`)
+
+SPEC REPOS:
+  trunk:
+    - FMDB
+    - ReachabilitySwift
+
+EXTERNAL SOURCES:
+  connectivity_plus:
+    :path: Flutter/ephemeral/.symlinks/plugins/connectivity_plus/macos
+  FlutterMacOS:
+    :path: Flutter/ephemeral
+  launch_at_startup:
+    :path: Flutter/ephemeral/.symlinks/plugins/launch_at_startup/macos
+  package_info_plus:
+    :path: Flutter/ephemeral/.symlinks/plugins/package_info_plus/macos
+  path_provider_foundation:
+    :path: Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin
+  screen_retriever:
+    :path: Flutter/ephemeral/.symlinks/plugins/screen_retriever/macos
+  shared_preferences_foundation:
+    :path: Flutter/ephemeral/.symlinks/plugins/shared_preferences_foundation/darwin
+  sqflite:
+    :path: Flutter/ephemeral/.symlinks/plugins/sqflite/macos
+  system_tray:
+    :path: Flutter/ephemeral/.symlinks/plugins/system_tray/macos
+  url_launcher_macos:
+    :path: Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos
+  window_manager:
+    :path: Flutter/ephemeral/.symlinks/plugins/window_manager/macos
+
+SPEC CHECKSUMS:
+  connectivity_plus: e74b9f74717d2d99d45751750e266e55912baeb5
+  FlutterMacOS: 8f6f14fa908a6fb3fba0cd85dbd81ec4b251fb24
+  FMDB: 728731dd336af3936ce00f91d9d8495f5718a0e6
+  launch_at_startup: 76d0788c31957ca371613b61de00dc445b582e62
+  package_info_plus: 122abb51244f66eead59ce7c9c200d6b53111779
+  path_provider_foundation: 2a68637f8a62df7f6e790a428d1bdf72cb4e2d59
+  ReachabilitySwift: 32793e867593cfc1177f5d16491e3a197d2fccda
+  screen_retriever: 4f97c103641aab8ce183fa5af3b87029df167936
+  shared_preferences_foundation: 4e65c567e7877037d328829a522222c938bf308c
+  sqflite: c73556b2499b92f0b6e6946abe4a4084510cdf90
+  system_tray: 53f0cdb020c3fbee711d3fe45ae7ce730e033d2b
+  url_launcher_macos: c83b920a14ed6c0ec4d6069c3ec3e19222607405
+  window_manager: 1d01fa7ac65a6e6f83b965471b1a7fdd3f06166c
+
+PODFILE CHECKSUM: 444e27ec029e85bb2d772c7d5b9d7143f85c00c9
+
+COCOAPODS: 1.16.2

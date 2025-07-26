@@ -77,11 +77,11 @@ class AppBloc with AppSystemTray {
 
   void onAddLeakItemClick() async {
     if (_leakInput == null || _leakInput?.trim().isEmpty == true) {
-      WinToast.instance().showToast(type: ToastType.text01, title: 'No input entered!');
+      _showToast('No input entered!');
       return;
     }
     if ((await AppSharedPreferences.leakChecklist).contains(_leakInput)) {
-      WinToast.instance().showToast(type: ToastType.text01, title: 'Repetitive input not allowed!');
+      _showToast('Repetitive input not allowed!');
       return;
     }
     await AppSharedPreferences.addToLeakChecklist(_leakInput!);
@@ -224,6 +224,10 @@ class AppBloc with AppSystemTray {
   }
 
   Future<void> _checkProxySettings() async {
+    if (Platform.isMacOS) {
+      // todo: implement macOS
+      return;
+    }
     final localNetwork = await AppCmd.getLocalNetworkInfo();
     _localNetwork.value = localNetwork;
     final proxyResult = await AppCmd.getProxySettings();
@@ -259,10 +263,18 @@ class AppBloc with AppSystemTray {
     }
 
     if (remaining < 1073741824 && lowBalanceToastCount < 2) {
-      WinToast.instance().showToast(type: ToastType.text01, title: 'Less than 1 GB is left in your kerio account!');
+      _showToast('Less than 1 GB is left in your kerio account!');
       await AppSharedPreferences.setKerioLowBalanceToastCount(lowBalanceToastCount + 1);
       await AppSharedPreferences.setKerioLowBalanceToastDate(today.toIso8601String());
     }
+  }
+
+  void _showToast(String title) {
+    if (Platform.isMacOS) {
+      // todo: implement macOS
+      return;
+    }
+    WinToast.instance().showToast(type: ToastType.text01, title: title);
   }
 
   void _checkNetworkConnectivity() async {

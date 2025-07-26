@@ -30,7 +30,7 @@ mixin AppSystemTray {
 
   Future<void> initSystemTray() async {
     await _systemTray.initSystemTray(
-      title: "system tray",
+      title: null,
       iconPath: 'assets/loading.ico',
     );
     final Menu menu = Menu();

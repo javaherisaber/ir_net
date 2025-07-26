@@ -246,6 +246,7 @@ class _KerioLoginViewState extends State<KerioLoginView> {
         final value = snapshot.data ?? false;
         return CheckboxListTile(
           title: const Text('Auto?'),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
           value: value,
           onChanged: (enabled) async {
             await AppSharedPreferences.setKerioAutoLogin(enabled ?? false);

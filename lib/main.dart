@@ -40,6 +40,10 @@ Future<void> initSingleInstance() async {
 }
 
 Future<void> initWinToast() async {
+  if (Platform.isMacOS) {
+    // todo: implement macos
+    return Future.value();
+  }
   await WinToast.instance().initialize(
     appName: 'IRNet',
     productName: 'IRNet',

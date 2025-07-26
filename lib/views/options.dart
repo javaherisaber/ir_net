@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 
@@ -32,7 +34,9 @@ class _AppOptionsState extends State<AppOptions> {
         final value = snapshot.data ?? false;
         return CheckboxListTile(
           title: const Text('Launch on windows startup?'),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
           value: value,
+          enabled: !Platform.isMacOS, // todo: implement macos
           onChanged: (enabled) {
             if (enabled == true) {
               LaunchAtStartup.instance.enable();
@@ -53,6 +57,7 @@ class _AppOptionsState extends State<AppOptions> {
         final value = snapshot.data ?? false;
         return CheckboxListTile(
           title: const Text('Show leak detection on system tray icon?'),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
           value: value,
           onChanged: (enabled) async {
             await AppSharedPreferences.setShowLeakInSysTray(enabled ?? false);
