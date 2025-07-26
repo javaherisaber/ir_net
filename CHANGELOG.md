@@ -1,3 +1,6 @@
+# 1.3.0
+- Support macOS
+
 # 1.2.3
 - Update app icon
 
