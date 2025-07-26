@@ -1,6 +1,6 @@
 # ir_net
 
-Windows tool to show VPN connection details
+Utility for power users that want to see VPN connection details
 
 <img src="https://github.com/user-attachments/assets/0146de59-bc97-4232-a7fd-eae9389dd87e" width="626" height="455">
 
@@ -8,7 +8,7 @@ Windows tool to show VPN connection details
 - Show location of connection in map
 - Leak detection on your urls
 - SysTray icon without the app being open
-- Start by windows startup
+- Start by startup
 - Ability to minimize and hide from taskbar
 - Show details of your ISP
 - Update status when there is a network change
@@ -16,7 +16,7 @@ Windows tool to show VPN connection details
 - Auto Connect to Kerio Network
 - Show usage and statistics of Kerio network
 
-## How to build windows installer
+## Build windows installer
 1. Build .exe file:
 ```bat
 flutter build windows
@@ -25,6 +25,19 @@ flutter build windows
 2. Open `Inno setup compiler` app and select .iss file from inno/Inno installer scrip.iss
 3. Press on run button
 4. Output .exe file will be in the `inno/Output` directory 
+
+## Build macos package
+1. Build .app file
+```bat
+flutter build macos --release
+```
+3. Put it in a folder named IRNet
+2. Create a symbolic link to Applications
+```bat
+ln -s /Applications Applications
+```
+3. Open Disk Utils app and go to File -> New Image -> Image from folder
+4. Select IRNet folder and press save
 
 ## TODO
 - Add alternative api service
