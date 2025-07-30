@@ -30,9 +30,12 @@ Future<void> initWindowManager() async {
   WindowOptions windowOptions = const WindowOptions(
     size: Size(1000, 780),
   );
-  windowManager.waitUntilReadyToShow(windowOptions, () {
-    windowManager.setTitle("IRNet: freedom does not have a price");
-  },);
+  windowManager.waitUntilReadyToShow(
+    windowOptions,
+    () {
+      windowManager.setTitle("IRNet: freedom does not have a price");
+    },
+  );
 }
 
 Future<void> initSingleInstance() async {
@@ -40,8 +43,8 @@ Future<void> initSingleInstance() async {
 }
 
 Future<void> initWinToast() async {
-  if (Platform.isMacOS) {
-    // todo: implement macos
+  if (Platform.isWindows == false) {
+    // todo: implement other platforms
     return Future.value();
   }
   await WinToast.instance().initialize(

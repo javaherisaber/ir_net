@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:ir_net/data/shared_preferences.dart';
 import 'package:system_tray/system_tray.dart';
 
 mixin AppSystemTray {
@@ -14,13 +15,31 @@ mixin AppSystemTray {
     _systemTray.setImage(iconPath);
   }
 
+  String _getIcon(String iconPath) {
+    if (Platform.isLinux) {
+      return '$iconPath.png';
+    } else {
+      return '$iconPath.ico';
+    }
+  }
+
+  void updateIconWhenCountryLoaded(
+      bool foundLeak, bool isIran, String tooltip) async {
+    var globIcon = _getIcon('assets/globe');
+    if (foundLeak && (await AppSharedPreferences.showLeakInSysTray)) {
+      globIcon = _getIcon('assets/globe_leaked');
+    }
+    final iconPath = isIran ? _getIcon('assets/iran') : globIcon;
+    updateSysTrayIcon(tooltip, iconPath);
+  }
+
   void setSystemTrayStatusToOffline() {
-    _systemTray.setImage('assets/offline.ico');
+    _systemTray.setImage(_getIcon('assets/offline'));
     _systemTray.setToolTip('IRNet: OFFLINE');
   }
 
   void setSystemTrayStatusToNetworkError() {
-    _systemTray.setImage('assets/network_error.ico');
+    _systemTray.setImage(_getIcon('assets/network_error'));
     _systemTray.setToolTip('IRNet: Network error');
   }
 
@@ -31,7 +50,7 @@ mixin AppSystemTray {
   Future<void> initSystemTray() async {
     await _systemTray.initSystemTray(
       title: null,
-      iconPath: 'assets/loading.ico',
+      iconPath: _getIcon('assets/loading'),
     );
     final Menu menu = Menu();
     await menu.buildFrom([

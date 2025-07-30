@@ -19,15 +19,16 @@ class _AppOptionsState extends State<AppOptions> {
       width: 400,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          showLeakInSysTray(),
-          launchAtStartup()
-        ],
+        children: [showLeakInSysTray(), launchAtStartup()],
       ),
     );
   }
 
   Widget launchAtStartup() {
+    if (Platform.isWindows == false) {
+      // todo: implement other platforms
+      return SizedBox();
+    }
     return FutureBuilder<bool>(
       future: LaunchAtStartup.instance.isEnabled(),
       builder: (context, snapshot) {
@@ -36,7 +37,6 @@ class _AppOptionsState extends State<AppOptions> {
           title: const Text('Launch on windows startup?'),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16),
           value: value,
-          enabled: !Platform.isMacOS, // todo: implement macos
           onChanged: (enabled) {
             if (enabled == true) {
               LaunchAtStartup.instance.enable();

@@ -224,9 +224,9 @@ class AppBloc with AppSystemTray {
   }
 
   Future<void> _checkProxySettings() async {
-    if (Platform.isMacOS) {
-      // todo: implement macOS
-      return;
+    if (Platform.isWindows == false) {
+      // todo: implement other platforms
+      return Future.value();
     }
     final localNetwork = await AppCmd.getLocalNetworkInfo();
     _localNetwork.value = localNetwork;
@@ -270,8 +270,8 @@ class AppBloc with AppSystemTray {
   }
 
   void _showToast(String title) {
-    if (Platform.isMacOS) {
-      // todo: implement macOS
+    if (Platform.isWindows == false) {
+      // todo: implement other platforms
       return;
     }
     WinToast.instance().showToast(type: ToastType.text01, title: title);
@@ -349,12 +349,7 @@ class AppBloc with AppSystemTray {
     } else {
       tooltip = 'IRNet: $country';
     }
-    var globIcon = 'assets/globe.ico';
-    if (_foundALeakedSite && (await AppSharedPreferences.showLeakInSysTray)) {
-      globIcon = 'assets/globe_leaked.ico';
-    }
-    final iconPath = isIran ? 'assets/iran.ico' : globIcon;
-    updateSysTrayIcon(tooltip, iconPath);
+    updateIconWhenCountryLoaded(_foundALeakedSite, isIran, tooltip);
     debugPrint('Country => $country');
   }
 }
