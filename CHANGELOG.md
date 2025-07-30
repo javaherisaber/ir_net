@@ -1,3 +1,6 @@
+# 1.4.0
+- Support linux
+
 # 1.3.0
 - Support macOS
 
