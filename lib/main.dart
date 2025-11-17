@@ -25,6 +25,16 @@ void main() async {
   runApp(const App());
 }
 
+class MacWindowListener extends WindowListener {
+  @override
+  void onWindowClose() async {
+    // On macOS, hide the window instead of closing it
+    if (Platform.isMacOS) {
+      await windowManager.hide();
+    }
+  }
+}
+
 Future<void> initWindowManager() async {
   await windowManager.ensureInitialized();
   WindowOptions windowOptions = const WindowOptions(
@@ -32,8 +42,12 @@ Future<void> initWindowManager() async {
   );
   windowManager.waitUntilReadyToShow(
     windowOptions,
-    () {
-      windowManager.setTitle("IRNet: freedom does not have a price");
+    () async {
+      await windowManager.setTitle("IRNet: freedom does not have a price");
+      // On macOS, add window listener to handle close button
+      if (Platform.isMacOS) {
+        windowManager.addListener(MacWindowListener());
+      }
     },
   );
 }
