@@ -1,3 +1,6 @@
+# 1.4.1
+- [macOS] Keep background process when pressing close button
+
 # 1.4.0
 - Support linux
 

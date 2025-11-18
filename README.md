@@ -39,6 +39,14 @@ ln -s /Applications Applications
 3. Open Disk Utils app and go to File -> New Image -> Image from folder
 4. Select IRNet folder and press save
 
+## Build linux package
+1. Build binaries
+```bash
+flutter build linux --release
+```
+
+Follow the instructions [here](/linux_build.md) to continue building package
+
 ## TODO
 - Add alternative api service
 - Choose default country and show flag based on that
