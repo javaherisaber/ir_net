@@ -1,14 +1,20 @@
+# 1.4.2
+- [all] fix an issue in kerio balance not visible and needs pressing auto checkbox
+- [all] refresh kerio balance every 20 seconds in the background
+- [all] allow saving kerio credentials when empty input is entered (to reset values)
+- [all] verify leaked sites infinitely in the background
+
 # 1.4.1
-- [macOS] Keep background process when pressing close button
+- [macOS] keep background process when pressing close button
 
 # 1.4.0
-- Support linux
+- [linux] Support linux
 
 # 1.3.0
-- Support macOS
+- [macOS] support macOS
 
 # 1.2.3
-- Update app icon
+- [windows] update app icon
 
 # 1.2.2
 - Add Kerio balance views
