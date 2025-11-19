@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_speedtest/flutter_speedtest.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
+import 'package:ir_net/data/kerio.dart';
 import 'package:ir_net/data/leak_item.dart';
 import 'package:ir_net/data/shared_preferences.dart';
 import 'package:ir_net/utils/cmd.dart';
@@ -29,6 +30,7 @@ class AppBloc with AppSystemTray {
   final _downloadSpeed = BehaviorSubject<double?>();
   final _uploadSpeed = BehaviorSubject<double?>();
   final _speedTestStatus = BehaviorSubject<String>();
+  final _kerioBalance = BehaviorSubject<KerioBalance>();
 
   bool _isPingingGoogle = false;
   bool _foundALeakedSite = false;
@@ -44,6 +46,7 @@ class AppBloc with AppSystemTray {
   Stream<double?> get downloadSpeed => _downloadSpeed.stream;
   Stream<double?> get uploadSpeed => _uploadSpeed.stream;
   Stream<String> get speedTestStatus => _speedTestStatus.stream;
+  Stream<KerioBalance> get kerioBalance => _kerioBalance.stream;
 
   final speedtest = FlutterSpeedtest(
     baseUrl: 'http://speedtest.jaosing.com:8080',
@@ -88,6 +91,22 @@ class AppBloc with AppSystemTray {
     _updateLeakChecklist();
     _clearLeakInput.fire();
     _leakInput = null;
+  }
+
+  void onKerioLoginClick(bool auto, String ip, String username, String password) async {
+    await AppSharedPreferences.setKerioIP(ip);
+    await AppSharedPreferences.setKerioUsername(username);
+    await AppSharedPreferences.setKerioPassword(password);
+
+    final url = 'http://$ip/internal/dologin.php';
+    final response = await http.post(
+      Uri.parse(url),
+      body: {
+        'kerio_username': username,
+        'kerio_password': password,
+      },
+    );
+    _checkKerioBalance();
   }
 
   Future<void> _updateLeakChecklist() async {
@@ -165,6 +184,7 @@ class AppBloc with AppSystemTray {
   void _runIpCheckInfinitely() async {
     while (true) {
       await _checkProxySettings();
+      _verifyLeakedSites();
       _checkIpLocation();
       await Future.delayed(const Duration(seconds: 20));
     }
@@ -173,7 +193,7 @@ class AppBloc with AppSystemTray {
   void _runKerioCheckInfinitely() async {
     while (true) {
       _checkKerioBalance();
-      await Future.delayed(const Duration(seconds: 60));
+      await Future.delayed(const Duration(seconds: 20));
     }
   }
 
@@ -231,24 +251,15 @@ class AppBloc with AppSystemTray {
     final localNetwork = await AppCmd.getLocalNetworkInfo();
     _localNetwork.value = localNetwork;
     final proxyResult = await AppCmd.getProxySettings();
-    var shouldRefreshLeakedSites = false;
-    if ((proxyResult.proxyEnabled && _proxyServer != proxyResult.proxyServer) ||
-        (!proxyResult.proxyEnabled && _proxyServer != null)) {
-      // there was a change in proxy settings
-      shouldRefreshLeakedSites = true;
-    }
     if (proxyResult.proxyEnabled) {
       _proxyServer = proxyResult.proxyServer;
     } else {
       _proxyServer = null;
     }
-    if (shouldRefreshLeakedSites) {
-      _verifyLeakedSites();
-    }
   }
 
   void _checkKerioBalance() async {
-    final (total, remaining) = await KerioUtils.getAccountBalance();
+    final balance = await KerioUtils.getAccountBalance();
     var lowBalanceToastCount = await AppSharedPreferences.kerioLowBalanceToastCount;
     var lastToastDate = await AppSharedPreferences.kerioLowBalanceToastDate;
 
@@ -262,11 +273,13 @@ class AppBloc with AppSystemTray {
       await AppSharedPreferences.setKerioLowBalanceToastDate(today.toIso8601String());
     }
 
-    if (remaining < 1073741824 && lowBalanceToastCount < 2) {
-      _showToast('Less than 1 GB is left in your kerio account!');
+    if (balance.remaining < 1073741824 && lowBalanceToastCount < 2) {
+      _showToast('Less than 1 GB is left in your kerio.dart account!');
       await AppSharedPreferences.setKerioLowBalanceToastCount(lowBalanceToastCount + 1);
       await AppSharedPreferences.setKerioLowBalanceToastDate(today.toIso8601String());
     }
+
+    _kerioBalance.value = balance;
   }
 
   void _showToast(String title) {
@@ -333,6 +346,7 @@ class AppBloc with AppSystemTray {
     _checkPing();
     _pingGoogle();
     _checkIpLocation();
+    _checkKerioBalance();
     _verifyLeakedSites();
   }
 

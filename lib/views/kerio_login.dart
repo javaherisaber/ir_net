@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:ir_net/data/shared_preferences.dart';
+import 'package:ir_net/main.dart';
 import 'package:ir_net/utils/kerio.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -46,26 +46,10 @@ class _KerioLoginViewState extends State<KerioLoginView> {
       _showMessage('Please fill in all fields');
       return;
     }
-
-    // Save credentials for auto-login
-    await AppSharedPreferences.setKerioIP(ip);
-    await AppSharedPreferences.setKerioUsername(username);
-    await AppSharedPreferences.setKerioPassword(password);
-
-    final url = 'http://$ip/internal/dologin.php';
-    final response = await http.post(
-      Uri.parse(url),
-      body: {
-        'kerio_username': username,
-        'kerio_password': password,
-      },
-    );
-
-    if (auto) {
-      return;
+    if (!auto) {
+      _showMessage('Login request sent');
     }
-
-    _showMessage('Login request sent'); // todo: handle failure case
+    bloc.onKerioLoginClick(auto, ip, username, password);
   }
 
   void _showMessage(String message) {
@@ -115,10 +99,12 @@ class _KerioLoginViewState extends State<KerioLoginView> {
   }
 
   Widget balance() {
-    return FutureBuilder(
-      future: KerioUtils.getAccountBalance(),
+    return StreamBuilder(
+      stream: bloc.kerioBalance,
       builder: (context, snapshot) {
-        var (total, remaining) = snapshot.data ?? (0, 0);
+        var balance = snapshot.data;
+        var total = balance?.total ?? 0;
+        var remaining = balance?.remaining ?? 0;
         var totalFormatted = total == 0 ? '--' : KerioUtils.formatBytes(total);
         var remainingFormatted = remaining == 0 ? '--' : KerioUtils.formatBytes(remaining);
         return Container(
@@ -160,7 +146,7 @@ class _KerioLoginViewState extends State<KerioLoginView> {
               }
             }
           },
-          icon: Image.asset('assets/kerio.png', width: 24, height: 24),
+          icon: Image.asset('assets/kerio.dart.png', width: 24, height: 24),
         ),
       ),
       keyboardType: TextInputType.url,

@@ -1,11 +1,12 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:ir_net/data/kerio.dart';
 
 import '../data/shared_preferences.dart';
 
 class KerioUtils {
-  static Future<(int, int)> getAccountBalance() async {
+  static Future<KerioBalance> getAccountBalance() async {
     final ip = await AppSharedPreferences.kerioIP;
     final username = await AppSharedPreferences.kerioUsername;
     final password = await AppSharedPreferences.kerioPassword;
@@ -94,7 +95,7 @@ class KerioUtils {
     final up = int.parse(quota['up']);
     final remaining = total - (down + up);
 
-    return (total, remaining);
+    return KerioBalance(total, remaining);
   }
 
   static String formatBytes(int bytes) {
