@@ -7,6 +7,7 @@ environment:
   flutter: "3.29.0"
 
 dependencies:
+  sentry_flutter: ^9.8.0
   flutter:
     sdk: flutter
   system_tray: ^2.0.3
@@ -29,6 +30,7 @@ dependencies:
   flutter_speedtest: ^0.2.0
 
 dev_dependencies:
+  sentry_dart_plugin: ^3.2.0
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
@@ -54,3 +56,9 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
+
+sentry:
+  upload_debug_symbols: true
+  upload_source_maps: true
+  project: flutter
+  org: buildtoapp

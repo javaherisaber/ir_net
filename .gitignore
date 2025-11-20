@@ -51,3 +51,5 @@ app.*.map.json
 
 # Inno
 /inno/Output
+sentry.properties
+sentry-wizard

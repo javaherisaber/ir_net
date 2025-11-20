@@ -11,6 +11,7 @@ import 'package:windows_single_instance/windows_single_instance.dart';
 
 import 'app.dart';
 import 'bloc.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 final bloc = AppBloc();
 
@@ -21,8 +22,27 @@ void main() async {
   await initWinToast();
   await initLaunchAtStartup();
   await initSharedPreferences();
+  await initSentry();
   bloc.initialize();
-  runApp(const App());
+}
+
+Future<void> initSentry() async {
+  await SentryFlutter.init((options) {
+      options.dsn = 'https://7bba19233fbc2fa1f5a7a6c7770aa571@o4510396075409408.ingest.de.sentry.io/4510396076654672';
+      // Set tracesSampleRate to 1.0 to capture 100% of transactions for tracing.
+      // We recommend adjusting this value in production.
+      options.tracesSampleRate = 1.0;
+      // Enable logs to be sent to Sentry
+      options.enableLogs = true;
+      // Record session replays for 100% of errors and 10% of sessions
+      options.replay.onErrorSampleRate = 1.0;
+      options.replay.sessionSampleRate = 0.1;
+      // The sampling rate for profiling is relative to tracesSampleRate
+      // Setting to 1.0 will profile 100% of sampled transactions:
+      options.profilesSampleRate = 1.0;
+    },
+    appRunner: () => runApp(SentryWidget(child: const App())),
+  );
 }
 
 class MacWindowListener extends WindowListener {
