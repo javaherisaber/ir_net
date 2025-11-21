@@ -1,4 +1,9 @@
 #include "flutter_window.h"
+#include <flutter/event_channel.h>
+#include <flutter/event_stream_handler_functions.h>
+#include <flutter/method_channel.h>
+#include <flutter/standard_method_codec.h>
+#include <windows.h>
 
 #include <optional>
 
@@ -54,6 +59,14 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   switch (message) {
     case WM_FONTCHANGE:
       flutter_controller_->engine()->ReloadSystemFonts();
+      break;
+    case WM_POWERBROADCAST:
+      if (wparam == PBT_APMRESUMEAUTOMATIC) {
+        flutter::MethodChannel<> channel(
+            flutter_controller_->engine()->messenger(), "ir_net/system_events",
+            &flutter::StandardMethodCodec::GetInstance());
+        channel.InvokeMethod("onWindowsWake", nullptr);
+      }
       break;
     case WM_CLOSE:
       ShowWindow(GetHandle(), SW_HIDE);

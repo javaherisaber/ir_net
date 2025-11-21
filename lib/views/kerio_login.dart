@@ -26,45 +26,13 @@ class _KerioLoginViewState extends State<KerioLoginView> {
     final ip = await AppSharedPreferences.kerioIP;
     final username = await AppSharedPreferences.kerioUsername;
     final password = await AppSharedPreferences.kerioPassword;
-    final enabled = await AppSharedPreferences.kerioAutoLogin;
 
     _ipController.text = ip ?? '';
-    if (ip != null && username != null && password != null && enabled == true) {
+    if (ip != null && username != null && password != null) {
       _ipController.text = ip;
       _usernameController.text = username;
       _passwordController.text = password;
-      _login(true);
     }
-  }
-
-  void _login(bool auto) async {
-    final ip = _ipController.text;
-    final username = _usernameController.text;
-    final password = _passwordController.text;
-
-    if (ip.isEmpty || username.isEmpty || password.isEmpty) {
-      _showMessage('Please fill in all fields');
-      return;
-    }
-    if (!auto) {
-      _showMessage('Login request sent');
-    }
-    bloc.onKerioLoginClick(auto, ip, username, password);
-  }
-
-  void _showMessage(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -146,7 +114,7 @@ class _KerioLoginViewState extends State<KerioLoginView> {
               }
             }
           },
-          icon: Image.asset('assets/kerio.dart.png', width: 24, height: 24),
+          icon: Image.asset('assets/kerio.png', width: 24, height: 24),
         ),
       ),
       keyboardType: TextInputType.url,
@@ -206,7 +174,7 @@ class _KerioLoginViewState extends State<KerioLoginView> {
         Expanded(
           flex: 2,
           child: ElevatedButton(
-            onPressed: () => _login(false),
+            onPressed: () => _login(),
             style: ElevatedButton.styleFrom(
               shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.all(Radius.circular(8)),
@@ -240,6 +208,37 @@ class _KerioLoginViewState extends State<KerioLoginView> {
           },
         );
       },
+    );
+  }
+
+  void _login() async {
+    final ip = _ipController.text;
+    final username = _usernameController.text;
+    final password = _passwordController.text;
+
+    if (ip.isEmpty || username.isEmpty || password.isEmpty) {
+      _showMessage('Please fill in all fields');
+      return;
+    }
+    await AppSharedPreferences.setKerioIP(ip);
+    await AppSharedPreferences.setKerioUsername(username);
+    await AppSharedPreferences.setKerioPassword(password);
+    _showMessage('Login request sent');
+    bloc.onKerioLoginClick();
+  }
+
+  void _showMessage(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 }

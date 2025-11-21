@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_speedtest/flutter_speedtest.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
@@ -21,6 +22,8 @@ import 'package:win_toast/win_toast.dart';
 import 'utils/kerio.dart';
 
 class AppBloc with AppSystemTray {
+  static const platform = MethodChannel('ir_net/system_events');
+
   final _latLng = StreamController<LatLng>();
   final _ipLookupResult = BehaviorSubject();
   final _clearLeakInput = LiveEvent();
@@ -65,7 +68,20 @@ class AppBloc with AppSystemTray {
     _runIpCheckInfinitely();
     _runKerioCheckInfinitely();
     _subscribeConnectivityChange();
+    _loginKerio(false);
     _initializeLeakChecklist();
+    _initializeNativeChannel();
+  }
+
+  void _initializeNativeChannel() {
+    platform.setMethodCallHandler((call) async {
+      if (call.method == 'onMacOsWake' 
+          || call.method == 'onWindowsWake' 
+          || call.method == 'onLinuxWake') {
+        await Future.delayed(const Duration(seconds: 3));
+        _handleRefresh();
+      }
+    });
   }
 
   void _initializeLeakChecklist() async {
@@ -93,25 +109,31 @@ class AppBloc with AppSystemTray {
     _leakInput = null;
   }
 
-  void onKerioLoginClick(bool auto, String ip, String username, String password) async {
-    await AppSharedPreferences.setKerioIP(ip);
-    await AppSharedPreferences.setKerioUsername(username);
-    await AppSharedPreferences.setKerioPassword(password);
+  void onKerioLoginClick() async {
+    await _loginKerio(true);
+    _checkKerioBalance();
+  }
 
+  Future<void> _loginKerio(bool manual) async {
+    var auto = await AppSharedPreferences.kerioAutoLogin;
+    if (!manual && !auto) {
+      return Future.value();
+    }
+    final ip = await AppSharedPreferences.kerioIP;
+    final username = await AppSharedPreferences.kerioUsername;
+    final password = await AppSharedPreferences.kerioPassword;
     final url = 'http://$ip/internal/dologin.php';
-    final response = await http.post(
+    await http.post(
       Uri.parse(url),
       body: {
         'kerio_username': username,
         'kerio_password': password,
       },
     );
-    _checkKerioBalance();
   }
 
   Future<void> _updateLeakChecklist() async {
-    _leakChecklist.value =
-        (await AppSharedPreferences.leakChecklist).map((e) => LeakItem(e)).toList();
+    _leakChecklist.value = (await AppSharedPreferences.leakChecklist).map((e) => LeakItem(e)).toList();
   }
 
   void _verifyLeakedSites() async {
@@ -343,6 +365,7 @@ class AppBloc with AppSystemTray {
 
   void _handleRefresh() async {
     await _checkProxySettings();
+    _loginKerio(false);
     _checkPing();
     _pingGoogle();
     _checkIpLocation();

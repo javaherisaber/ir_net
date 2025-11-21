@@ -10,9 +10,26 @@
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
+  FlMethodChannel* method_channel;
+  GDBusConnection* system_bus;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
+
+static void system_awake_callback(GDBusConnection* connection,
+                                  const gchar* sender_name,
+                                  const gchar* object_path,
+                                  const gchar* interface_name,
+                                  const gchar* signal_name,
+                                  GVariant* parameters,
+                                  gpointer user_data) {
+  MyApplication* self = MY_APPLICATION(user_data);
+  gboolean sleeping;
+  g_variant_get(parameters, "(b)", &sleeping);
+  if (!sleeping && self->method_channel) {
+    fl_method_channel_invoke_method(self->method_channel, "onLinuxWake", nullptr, nullptr, nullptr, nullptr);
+  }
+}
 
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
@@ -59,6 +76,25 @@ static void my_application_activate(GApplication* application) {
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
+  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+  FlEngine* engine = fl_view_get_engine(view);
+  FlBinaryMessenger* messenger = fl_engine_get_binary_messenger(engine);
+  self->method_channel = fl_method_channel_new(messenger, "ir_net/system_events", FL_METHOD_CODEC(codec));
+
+  self->system_bus = g_bus_get_sync(G_BUS_TYPE_SYSTEM, nullptr, nullptr);
+  if (self->system_bus) {
+    g_dbus_connection_signal_subscribe(self->system_bus,
+                                       "org.freedesktop.login1",
+                                       "org.freedesktop.login1.Manager",
+                                       "PrepareForSleep",
+                                       "/org/freedesktop/login1",
+                                       nullptr,
+                                       G_DBUS_SIGNAL_FLAGS_NONE,
+                                       system_awake_callback,
+                                       self,
+                                       nullptr);
+  }
+
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
 
@@ -85,6 +121,8 @@ static gboolean my_application_local_command_line(GApplication* application, gch
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
+  g_clear_object(&self->method_channel);
+  g_clear_object(&self->system_bus);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }
 
