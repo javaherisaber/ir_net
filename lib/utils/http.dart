@@ -13,9 +13,9 @@ class HttpUtils {
       HttpHeaders.connectionHeader: 'keep-alive', // Ensure keep-alive headers
     });
     try {
-      await _dio.get(url).timeout(timeout); // just a warm up connection to get a reliable result
+      await _dio.head(url).timeout(timeout); // just a warm up connection to get a reliable result
       final firstTime = DateTime.now().millisecondsSinceEpoch;
-      final response = await _dio.get(url).timeout(timeout);
+      final response = await _dio.head(url).timeout(timeout);
       final secondTime = DateTime.now().millisecondsSinceEpoch;
       if (response.statusCode == 200 || response.statusCode == 204) {
         return (secondTime - firstTime).toDouble();

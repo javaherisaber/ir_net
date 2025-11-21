@@ -142,7 +142,7 @@ class AppBloc with AppSystemTray {
     _replaceLeakItemInChecklist(item);
     try {
       final url = Uri.parse(item.url);
-      final response = await _client.get(url).timeout(const Duration(seconds: 10));
+      final response = await _client.head(url).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         item.status = LeakStatus.passed;
       } else {
@@ -201,7 +201,7 @@ class AppBloc with AppSystemTray {
     try {
       _isPingingGoogle = true;
       final url = Uri.parse('https://google.com');
-      await _client.get(url).timeout(const Duration(seconds: 5));
+      await _client.head(url).timeout(const Duration(seconds: 5));
     } on TimeoutException {
       _isPingingGoogle = false;
       _checkNetworkConnectivity();
