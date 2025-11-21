@@ -1,3 +1,8 @@
+# 1.4.3
+- [all] integrate Sentry for error tracking
+- [all] use HEAD request for ping and leak detection
+- [desktop] refresh content when system awakes from sleep
+
 # 1.4.2
 - [all] fix an issue in kerio balance not visible and needs pressing auto checkbox
 - [all] refresh kerio balance every 20 seconds in the background
@@ -8,7 +13,7 @@
 - [macOS] keep background process when pressing close button
 
 # 1.4.0
-- [linux] Support linux
+- [linux] support linux
 
 # 1.3.0
 - [macOS] support macOS
