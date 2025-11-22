@@ -39,10 +39,10 @@ ln -s /Applications Applications
 ## Build linux package
 1. Build binaries
 ```bash
-flutter build linux --release
+./build_linux.sh
 ```
 
-Follow the instructions [here](/linux_build.md) to continue building package
+Follow the instructions [here](/linux_build.md) for more details (if needed)
 
 ## TODO
 - Add alternative api service
