@@ -17,14 +17,11 @@ Utility for power users that want to see VPN connection details
 - Show usage and statistics of Kerio network
 
 ## Build windows installer
-1. Build .exe file:
-```bat
-flutter build windows
+Run the build script which updates the version, builds the app, and compiles the installer:
+```powershell
+.\build_windows.ps1
 ```
-
-2. Open `Inno setup compiler` app and select .iss file from inno/Inno installer scrip.iss
-3. Press on run button
-4. Output .exe file will be in the `inno/Output` directory 
+Output .exe file will be in the `inno/Output` directory.
 
 ## Build macos package
 1. Build .app file

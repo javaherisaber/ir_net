@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "IRNet"
-#define MyAppVersion "1.2.3"
+#define MyAppVersion "1.4.3"
 #define MyAppPublisher "BuildToApp, Inc."
 #define MyAppURL "https://www.buildtoapp.com/"
 #define MyAppExeName "ir_net.exe"
@@ -31,7 +31,7 @@ DisableProgramGroupPage=yes
 LicenseFile=C:\Workspace\Flutter\ir_net\inno\installer license.txt
 ; Uncomment the following line to run in non administrative install mode (install for current user only.)
 ;PrivilegesRequired=lowest
-OutputBaseFilename=IRNet_windows_setup
+OutputBaseFilename=IRNet_windows_setup_1.4.3
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
