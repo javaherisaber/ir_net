@@ -42,6 +42,8 @@ ln -s /Applications Applications
 ./build_linux.sh
 ```
 
+Output .deb file will be in the `/outputs` directory
+
 Follow the instructions [here](/linux_build.md) for more details (if needed)
 
 ## TODO

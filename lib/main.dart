@@ -63,7 +63,14 @@ Future<void> initWindowManager() async {
   windowManager.waitUntilReadyToShow(
     windowOptions,
     () async {
-      await windowManager.setTitle("IRNet: freedom does not have a price");
+      try {
+        final packageInfo = await PackageInfo.fromPlatform();
+        final version = packageInfo.version;
+        await windowManager.setTitle("IRNet V$version - freedom does not have a price");
+      } catch (e) {
+        // Fallback to default title if PackageInfo fails
+        await windowManager.setTitle("IRNet - freedom does not have a price");
+      }
       // On macOS, add window listener to handle close button
       if (Platform.isMacOS) {
         windowManager.addListener(MacWindowListener());
