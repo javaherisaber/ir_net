@@ -187,14 +187,14 @@ class AppBloc with AppSystemTray {
   }
 
   void _subscribeConnectivityChange() {
-    Connectivity().onConnectivityChanged.listen((ConnectivityResult result) async {
-      if (result != ConnectivityResult.none) {
+    Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> result) async {
+      if (result.contains(ConnectivityResult.none)) {
+        setSystemTrayStatusToOffline();
+      } else {
         await _checkProxySettings();
         _checkIpLocation();
         _verifyLeakedSites();
         _checkPing();
-      } else {
-        setSystemTrayStatusToOffline();
       }
     });
   }
@@ -314,7 +314,7 @@ class AppBloc with AppSystemTray {
 
   void _checkNetworkConnectivity() async {
     final result = await (Connectivity().checkConnectivity());
-    if (result == ConnectivityResult.none) {
+    if (result.contains(ConnectivityResult.none)) {
       setSystemTrayStatusToOffline();
     } else {
       setSystemTrayStatusToNetworkError();
