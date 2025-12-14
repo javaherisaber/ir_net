@@ -129,12 +129,12 @@ class _ConnectionState extends State<Connection> {
             },
             style: ElevatedButton.styleFrom(
               shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8))),
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 24),
               backgroundColor: value == 'Running' ? Colors.grey : Colors.blue,
             ),
             child: const Text('Test', style: TextStyle(color: Colors.white, fontSize: 18)),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           if (value == 'Running')
             const SizedBox(width: 20, height: 20, child: CircularProgressIndicator())
           else

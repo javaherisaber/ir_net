@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:ir_net/data/shared_preferences.dart';
+import 'package:ir_net/utils/platform.dart';
 import 'package:system_tray/system_tray.dart';
 
 mixin AppSystemTray {
@@ -48,6 +49,9 @@ mixin AppSystemTray {
   }
 
   Future<void> initSystemTray() async {
+    if (!PlatformUtils.isDesktop) {
+      return;
+    }
     await _systemTray.initSystemTray(
       title: null,
       iconPath: _getIcon('assets/loading'),

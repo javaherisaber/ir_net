@@ -29,6 +29,7 @@ dependencies:
   path_provider: ^2.1.5
   window_manager: ^0.3.9
   flutter_speedtest: ^0.2.0
+  country_flags: ^4.0.0
 
 dev_dependencies:
   sentry_dart_plugin: ^3.2.0

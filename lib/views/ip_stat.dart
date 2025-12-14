@@ -1,12 +1,10 @@
 import 'dart:collection';
 import 'dart:math';
 
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:country_flags/country_flags.dart';
 import 'package:flutter/material.dart';
 import 'package:ir_net/main.dart';
 import 'package:ir_net/utils/cmd.dart';
-import 'package:latlng/latlng.dart';
-import 'package:map/map.dart';
 
 class IpStatView extends StatefulWidget {
   const IpStatView({super.key});
@@ -16,21 +14,6 @@ class IpStatView extends StatefulWidget {
 }
 
 class _IpStatViewState extends State<IpStatView> {
-  late MapController controller;
-
-  @override
-  void initState() {
-    controller = MapController(
-      location: const LatLng(35.69439, 51.42151),
-      zoom: 8,
-    );
-    bloc.latLng.listen((latLng) {
-      setState(() {
-        controller.center = latLng;
-      });
-    });
-    super.initState();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,13 +21,9 @@ class _IpStatViewState extends State<IpStatView> {
       crossAxisAlignment: CrossAxisAlignment.center,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        locationTag(),
-        const SizedBox(height: 16),
-        map(),
+        lookupResult(),
         const SizedBox(height: 16),
         networkInfo(),
-        const SizedBox(height: 16),
-        lookupResult(),
       ],
     );
   }
@@ -80,7 +59,7 @@ class _IpStatViewState extends State<IpStatView> {
       }
       var interfaceName = inf.interfaceName;
       if (interfaceName.length > 10) {
-        interfaceName = interfaceName.substring(0, 5) + "..." + interfaceName.substring(interfaceName.length - 5);
+        interfaceName = "${interfaceName.substring(0, 5)}...${interfaceName.substring(interfaceName.length - 5)}";
       }
       result += '${inf.ipv4} ($interfaceName)';
     }
@@ -117,77 +96,69 @@ class _IpStatViewState extends State<IpStatView> {
         if (data == null) {
           return const SizedBox.shrink();
         }
-        var result = '';
-        var longestLength = 1;
-        for (MapEntry e in (data as LinkedHashMap).entries) {
-          final len = e.key.toString().length;
-          if (len > longestLength) {
-            longestLength = len;
-          }
+
+        final map = data as LinkedHashMap;
+        final countryCode = map['countryCode'];
+        final entries = map.entries
+            .where((e) => e.key != 'lat' && e.key != 'lon' && e.key != 'query' && e.key != 'countryCode')
+            .toList();
+        if (entries.isEmpty) {
+          return const SizedBox.shrink();
         }
-        for (MapEntry e in (data).entries) {
-          if (e.key == 'lat' || e.key == 'lon' || e.key == 'query' || e.key == 'continent') {
-            continue;
-          }
-          final charCode = '.'.codeUnitAt(0);
-          final dots = String.fromCharCodes(
-            List.generate(longestLength - e.key.toString().length, (index) => charCode),
-          );
-          result += '${e.key} $dots................. ${e.value}\n';
-        }
-        return Text(result);
-      },
-    );
-  }
 
-  Widget locationTag() {
-    return StreamBuilder<dynamic>(
-      stream: bloc.ipLookupResult,
-      builder: (context, snapshot) {
-        final data = snapshot.data;
-        if (data == null) {
-          return const Text('No data');
-        }
-        return Text('${data['country']}, ${data['city']}');
-      },
-    );
-  }
+        final longestLength =
+        entries.map((e) => e.key.toString().length).fold(0, max);
+        final keyColumnWidth = (longestLength * 8.0).clamp(120.0, 280.0);
 
-  Widget map() {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        SizedBox(
-          width: 400,
-          height: 150,
-          child: mapLayout(),
-        ),
-      ],
-    );
-  }
-
-  Widget mapLayout() {
-    return MapLayout(
-      controller: controller,
-      builder: (context, transformer) {
-        return TileLayer(
-          builder: (context, x, y, z) {
-            final tilesInZoom = pow(2.0, z).floor();
-            while (x < 0) {
-              x += tilesInZoom;
-            }
-            while (y < 0) {
-              y += tilesInZoom;
-            }
-            x %= tilesInZoom;
-            y %= tilesInZoom;
-            final url = 'https://a.tile.openstreetmap.fr/hot/$z/$x/$y.png';
-
-            return CachedNetworkImage(
-              imageUrl: url,
-              fit: BoxFit.cover,
-            );
-          },
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          child: ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: entries.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 6),
+            itemBuilder: (context, index) {
+              final e = entries[index];
+              return Container(
+                color: Colors.black12,
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: keyColumnWidth,
+                      child: Text(
+                        e.key.toString(),
+                        style: const TextStyle(fontFamily: 'monospace'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Text(
+                            '${e.value}',
+                            softWrap: true,
+                          ),
+                          if (e.key == 'country')
+                            const SizedBox(width: 16),
+                          if (e.key == 'country')
+                            CountryFlag.fromCountryCode(
+                              countryCode,
+                              theme: const ImageTheme(
+                                height: 20,
+                                width: 30,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         );
       },
     );

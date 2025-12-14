@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ir_net/utils/platform.dart';
 import 'package:ir_net/views/connection.dart';
 import 'package:ir_net/views/ip_stat.dart';
 import 'package:ir_net/views/leak.dart';
@@ -23,33 +24,65 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  LeakView(),
-                  SizedBox(width: 64),
-                  IpStatView(),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  AppOptions(),
-                  SizedBox(width: 64),
-                  Connection()
-                ],
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  exitButton(),
-                  const SizedBox(width: 16),
-                  refreshButton(),
-                ],
-              ),
+              if (PlatformUtils.isMobile) ...[
+                const Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.start,
+                  spacing: 64,
+                  runSpacing: 8,
+                  children: [
+                    LeakView(),
+                    IpStatView(),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 64,
+                  runSpacing: 8,
+                  children: [
+                    AppOptions(),
+                    Connection(),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    exitButton(),
+                    const SizedBox(width: 16),
+                    refreshButton(),
+                  ],
+                )
+              ] else ... [
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    LeakView(),
+                    SizedBox(width: 64),
+                    IpStatView(),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    AppOptions(),
+                    SizedBox(width: 64),
+                    Connection()
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    exitButton(),
+                    const SizedBox(width: 16),
+                    refreshButton(),
+                  ],
+                )
+              ]
             ],
           ),
         ),
