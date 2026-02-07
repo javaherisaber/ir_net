@@ -18,72 +18,72 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (PlatformUtils.isMobile) ...[
-                const Wrap(
-                  alignment: WrapAlignment.center,
-                  crossAxisAlignment: WrapCrossAlignment.start,
-                  spacing: 64,
-                  runSpacing: 8,
-                  children: [
-                    LeakView(),
-                    IpStatView(),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 64,
-                  runSpacing: 8,
-                  children: [
-                    AppOptions(),
-                    Connection(),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    exitButton(),
-                    const SizedBox(width: 16),
-                    refreshButton(),
-                  ],
-                )
-              ] else ... [
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    LeakView(),
-                    SizedBox(width: 64),
-                    IpStatView(),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    AppOptions(),
-                    SizedBox(width: 64),
-                    Connection()
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    exitButton(),
-                    const SizedBox(width: 16),
-                    refreshButton(),
-                  ],
-                )
-              ]
-            ],
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (PlatformUtils.isMobile) ...[
+                  const SizedBox(height: 24),
+                  const Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.start,
+                    spacing: 64,
+                    runSpacing: 8,
+                    children: [
+                      LeakView(),
+                      IpStatView(),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 64,
+                    runSpacing: 8,
+                    children: [
+                      AppOptions(),
+                      Connection(),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      exitButton(),
+                      const SizedBox(width: 16),
+                      refreshButton(),
+                    ],
+                  ),
+                  const SizedBox(height: 24)
+                ] else ...[
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      LeakView(),
+                      SizedBox(width: 64),
+                      IpStatView(),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [AppOptions(), SizedBox(width: 64), Connection()],
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      exitButton(),
+                      const SizedBox(width: 16),
+                      refreshButton(),
+                    ],
+                  )
+                ]
+              ],
+            ),
           ),
         ),
       ),
@@ -92,7 +92,8 @@ class _HomePageState extends State<HomePage> {
 
   Widget exitButton() {
     return ElevatedButton(
-      style: ButtonStyle(minimumSize: MaterialStateProperty.all(const Size(80, 56))),
+      style: ButtonStyle(
+          minimumSize: MaterialStateProperty.all(const Size(80, 56))),
       onPressed: bloc.onExitClick,
       child: const Text('Exit'),
     );
@@ -100,7 +101,8 @@ class _HomePageState extends State<HomePage> {
 
   Widget refreshButton() {
     return ElevatedButton(
-      style: ButtonStyle(minimumSize: MaterialStateProperty.all(const Size(80, 56))),
+      style: ButtonStyle(
+          minimumSize: MaterialStateProperty.all(const Size(80, 56))),
       onPressed: bloc.onRefreshButtonClick,
       child: const Text('Refresh'),
     );

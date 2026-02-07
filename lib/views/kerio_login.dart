@@ -199,7 +199,7 @@ class _KerioLoginViewState extends State<KerioLoginView> {
       builder: (context, snapshot) {
         final value = snapshot.data ?? false;
         return CheckboxListTile(
-          title: const Text('Auto?'),
+          title: const Text('Auto'),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16),
           value: value,
           onChanged: (enabled) async {

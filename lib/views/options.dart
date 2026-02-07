@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:ir_net/utils/platform.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 
 import '../data/shared_preferences.dart';
@@ -51,6 +52,9 @@ class _AppOptionsState extends State<AppOptions> {
   }
 
   Widget showLeakInSysTray() {
+    if (PlatformUtils.isMobile) {
+      return SizedBox();
+    }
     return FutureBuilder<bool>(
       future: AppSharedPreferences.showLeakInSysTray,
       builder: (context, snapshot) {
