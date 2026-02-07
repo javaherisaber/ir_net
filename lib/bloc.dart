@@ -263,6 +263,7 @@ class AppBloc with AppSystemTray {
     }
     _ipLookupResult.value = json;
     _updateCountryTrayIcon();
+    _updateAndroidNotification(json);
   }
 
   Future<void> _checkProxySettings() async {
@@ -351,6 +352,7 @@ class AppBloc with AppSystemTray {
 
   void onExitClick() {
     destroySystemTray();
+    _cancelAndroidNotification();
     exit(0);
   }
 
@@ -388,5 +390,33 @@ class AppBloc with AppSystemTray {
     }
     updateIconWhenCountryLoaded(_foundALeakedSite, isIran, tooltip);
     debugPrint('Country => $country');
+  }
+
+  void _updateAndroidNotification(Map json) {
+    if (!Platform.isAndroid) return;
+    try {
+      platform.invokeMethod('updateNotification', {
+        'countryCode': json['countryCode'] ?? '',
+        'country': json['country'] ?? '',
+        'city': json['city'] ?? '',
+        'isp': json['isp'] ?? '',
+        'ip': json['query'] ?? '',
+      });
+    } on PlatformException catch (e) {
+      debugPrint('Failed to update notification: $e');
+    } on MissingPluginException catch (e) {
+      debugPrint('Notification plugin not available: $e');
+    }
+  }
+
+  void _cancelAndroidNotification() {
+    if (!Platform.isAndroid) return;
+    try {
+      platform.invokeMethod('cancelNotification');
+    } on PlatformException catch (e) {
+      debugPrint('Failed to cancel notification: $e');
+    } on MissingPluginException catch (e) {
+      debugPrint('Cancel notification plugin not available: $e');
+    }
   }
 }
