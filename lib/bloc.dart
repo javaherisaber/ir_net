@@ -249,12 +249,15 @@ class AppBloc with AppSystemTray {
       response = await _client.get(uri).timeout(const Duration(seconds: 10));
     } on TimeoutException {
       _checkNetworkConnectivity();
+      _updateAndroidNotification({});
       return;
     } on SocketException catch (ex) {
       _checkNetworkRefuseException(ex);
+      _updateAndroidNotification({});
       return;
     } on Exception {
       _checkNetworkConnectivity();
+      _updateAndroidNotification({});
       return;
     }
     final json = jsonDecode(response.body);
@@ -350,9 +353,10 @@ class AppBloc with AppSystemTray {
     );
   }
 
-  void onExitClick() {
+  void onExitClick() async {
     destroySystemTray();
     _cancelAndroidNotification();
+    _stopAndroidService();
     exit(0);
   }
 
@@ -417,6 +421,17 @@ class AppBloc with AppSystemTray {
       debugPrint('Failed to cancel notification: $e');
     } on MissingPluginException catch (e) {
       debugPrint('Cancel notification plugin not available: $e');
+    }
+  }
+
+  void _stopAndroidService() {
+    if (!Platform.isAndroid) return;
+    try {
+      platform.invokeMethod('stopService');
+    } on PlatformException catch (e) {
+      debugPrint('Failed to stop service: $e');
+    } on MissingPluginException catch (e) {
+      debugPrint('Stop service plugin not available: $e');
     }
   }
 }

@@ -1,6 +1,7 @@
 package com.buildtoapp.ir_net
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.ActivityCompat
@@ -42,6 +43,10 @@ class MainActivity : FlutterActivity() {
                         notificationManager.cancelNotification()
                         result.success(null)
                     }
+                    "stopService" -> {
+                        stopService(Intent(this, IpForegroundService::class.java))
+                        result.success(null)
+                    }
                     else -> result.notImplemented()
                 }
             }
@@ -50,6 +55,16 @@ class MainActivity : FlutterActivity() {
     override fun onStart() {
         super.onStart()
         requestNotificationPermission()
+        startForegroundService()
+    }
+
+    private fun startForegroundService() {
+        val intent = Intent(this, IpForegroundService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
     }
 
     private fun requestNotificationPermission() {

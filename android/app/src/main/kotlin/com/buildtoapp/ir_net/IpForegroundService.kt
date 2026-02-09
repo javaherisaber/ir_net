@@ -3,125 +3,114 @@ package com.buildtoapp.ir_net
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.os.Build
+import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.graphics.drawable.IconCompat
 
-class IpNotificationManager(private val context: Context) {
+class IpForegroundService : Service() {
 
     companion object {
         private const val CHANNEL_ID = "ip_notification_channel"
         private const val NOTIFICATION_ID = 1001
     }
 
-    private val notificationManager =
-        context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-    init {
+    override fun onCreate() {
+        super.onCreate()
         createNotificationChannel()
+        startForegroundWithNotification()
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "IP Location",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Shows current IP location info"
-                setShowBadge(false)
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            if (manager.getNotificationChannel(CHANNEL_ID) == null) {
+                val channel = NotificationChannel(
+                    CHANNEL_ID,
+                    "IP Location",
+                    NotificationManager.IMPORTANCE_LOW
+                ).apply {
+                    description = "Shows current IP location info"
+                    setShowBadge(false)
+                }
+                manager.createNotificationChannel(channel)
             }
-            notificationManager.createNotificationChannel(channel)
         }
     }
 
-    fun showOrUpdateNotification(
-        countryCode: String,
-        country: String,
-        city: String,
-        isp: String,
-        ip: String
-    ) {
-        if (countryCode.isNotBlank()) {
-            context.getSharedPreferences("ip_notification", Context.MODE_PRIVATE).edit()
-                .putString("countryCode", countryCode)
-                .putString("country", country)
-                .putString("city", city)
-                .putString("isp", isp)
-                .putString("ip", ip)
-                .apply()
-        }
+    private fun startForegroundWithNotification() {
+        val prefs = getSharedPreferences("ip_notification", Context.MODE_PRIVATE)
+        val countryCode = prefs.getString("countryCode", null)
+        val country = prefs.getString("country", null)
+        val city = prefs.getString("city", null)
+        val isp = prefs.getString("isp", null)
+        val ip = prefs.getString("ip", null)
 
-        val isError = countryCode.isBlank()
+        val hasSavedData = !countryCode.isNullOrBlank()
 
         val title: String
         val contentText: String
-        val bigText: String
         val smallIcon: IconCompat
 
-        if (isError) {
-            title = "\u26A0\uFE0F IP location unavailable"
-            contentText = "Could not resolve IP location"
-            bigText = "Could not resolve IP location.\nCheck your network connection."
-            smallIcon = IconCompat.createWithResource(context, android.R.drawable.ic_dialog_alert)
-        } else {
-            val flagEmoji = countryCodeToFlagEmoji(countryCode)
+        if (hasSavedData) {
+            val flagEmoji = countryCodeToFlagEmoji(countryCode!!)
             title = "$flagEmoji $country"
             contentText = "IP: $ip | $city"
-            bigText = "IP: $ip\nCity: $city\nISP: $isp"
             smallIcon = IconCompat.createWithBitmap(createCountryCodeBitmap(countryCode))
+        } else {
+            title = "IRNet"
+            contentText = "Monitoring IP location..."
+            smallIcon = IconCompat.createWithResource(this, android.R.drawable.ic_dialog_info)
         }
 
-        val launchIntent = Intent(context, MainActivity::class.java).apply {
+        val launchIntent = Intent(this, MainActivity::class.java).apply {
             action = Intent.ACTION_MAIN
             addCategory(Intent.CATEGORY_LAUNCHER)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
         }
         val pendingIntent = PendingIntent.getActivity(
-            context, 0, launchIntent,
+            this, 0, launchIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(smallIcon)
             .setContentTitle(title)
             .setContentText(contentText)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
             .setContentIntent(pendingIntent)
             .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
             .setSilent(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
 
-        notificationManager.notify(NOTIFICATION_ID, builder.build())
-    }
-
-    fun cancelNotification() {
-        notificationManager.cancel(NOTIFICATION_ID)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
     }
 
     private fun createCountryCodeBitmap(countryCode: String): Bitmap {
         val size = 96
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-
         val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = android.graphics.Color.WHITE
             textSize = if (countryCode.length <= 2) 64f else 48f
             typeface = Typeface.DEFAULT_BOLD
             textAlign = Paint.Align.CENTER
         }
-
         val x = size / 2f
         val y = size / 2f - (textPaint.descent() + textPaint.ascent()) / 2f
         canvas.drawText(countryCode.uppercase(), x, y, textPaint)
-
         return bitmap
     }
 
@@ -130,4 +119,10 @@ class IpNotificationManager(private val context: Context) {
             String(Character.toChars(0x1F1E6 - 'A'.code + char.code))
         }.joinToString("")
     }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        return START_STICKY
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
 }
