@@ -8,7 +8,7 @@ class LeakItem {
     return [
       'https://developer.android.com',
       'https://dl.google.com/dl/android/maven2/com/android/tools/build/gradle/4.1.3/gradle-4.1.3.pom',
-      'https://storage.googleapis.com/dartlang-pub-public-packages/packages/live_event-0.0.1.tar.gz'
+      'https://pub.dev/api/archives/live_event-1.0.0.tar.gz'
     ];
   }
 }
