@@ -8,7 +8,7 @@ plugins {
 android {
     namespace = "com.buildtoapp.ir_net"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973" // todo: if you upgraded flutter make sure to change this back to flutter.ndkVersion
+    ndkVersion = "28.2.13676358" // todo: if you upgraded flutter make sure to change this back to flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
