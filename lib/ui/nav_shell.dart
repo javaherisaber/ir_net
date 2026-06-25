@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:ir_net/main.dart';
+import 'package:ir_net/utils/app_info.dart';
 import 'package:ir_net/utils/platform.dart';
 
 import 'components.dart';
@@ -108,9 +109,9 @@ class _DesktopShellState extends State<_DesktopShell> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(8, 6, 8, 18),
-            child: BrandMark(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 6, 8, 18),
+            child: BrandMark(version: AppInfo.version),
           ),
           for (var i = 0; i < _navItems.length; i++) _navTile(i),
           const Spacer(),
@@ -285,8 +286,12 @@ class _MobileShellState extends State<_MobileShell> {
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
           child: Row(
             children: [
-              const Expanded(
-                child: BrandMark(size: 24, tagline: 'freedom does not have a price'),
+              Expanded(
+                child: BrandMark(
+                  size: 24,
+                  tagline: 'freedom does not have a price',
+                  version: AppInfo.version,
+                ),
               ),
               const SizedBox(width: 12),
               AppButton(

@@ -12,6 +12,7 @@ import 'package:windows_single_instance/windows_single_instance.dart';
 
 import 'app.dart';
 import 'bloc.dart';
+import 'utils/app_info.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 final bloc = AppBloc();
@@ -23,6 +24,7 @@ void main() async {
   await initWinToast();
   await initLaunchAtStartup();
   await initSharedPreferences();
+  await AppInfo.load();
   await initSentry();
   bloc.initialize();
 }

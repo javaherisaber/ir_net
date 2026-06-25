@@ -95,11 +95,20 @@ class IconTile extends StatelessWidget {
 
 /// The IRNet logo mark + optional wordmark.
 class BrandMark extends StatelessWidget {
-  const BrandMark({super.key, this.size = 28, this.showWordmark = true, this.tagline});
+  const BrandMark({
+    super.key,
+    this.size = 28,
+    this.showWordmark = true,
+    this.tagline,
+    this.version,
+  });
 
   final double size;
   final bool showWordmark;
   final String? tagline;
+
+  /// Optional version string shown after the "IRNet" wordmark (e.g. "v1.5.0").
+  final String? version;
 
   @override
   Widget build(BuildContext context) {
@@ -122,10 +131,24 @@ class BrandMark extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('IRNet',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.ui(16, FontWeight.w700, AppColors.text, height: 1)),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Flexible(
+                    child: Text('IRNet',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.ui(16, FontWeight.w700, AppColors.text, height: 1)),
+                  ),
+                  if (version != null && version!.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Text('v$version',
+                        style: AppText.mono(11, FontWeight.w500, AppColors.text3, height: 1)),
+                  ],
+                ],
+              ),
               if (tagline != null) ...[
                 const SizedBox(height: 2),
                 Text(tagline!,
