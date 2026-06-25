@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "BuildToApp" "\0"
-            VALUE "FileDescription", "ir_net" "\0"
+            VALUE "FileDescription", "IRNet" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "ir_net" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2022 BuildToApp. All rights reserved." "\0"
             VALUE "OriginalFilename", "ir_net.exe" "\0"
-            VALUE "ProductName", "ir_net" "\0"
+            VALUE "ProductName", "IRNet" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

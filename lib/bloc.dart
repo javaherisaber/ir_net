@@ -15,7 +15,6 @@ import 'package:ir_net/utils/cmd.dart';
 import 'package:ir_net/utils/http.dart';
 import 'package:ir_net/utils/system_tray.dart';
 import 'package:latlng/latlng.dart';
-import 'package:live_event/live_event.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:win_toast/win_toast.dart';
 
@@ -26,7 +25,9 @@ class AppBloc with AppSystemTray {
 
   final _latLng = StreamController<LatLng>();
   final _ipLookupResult = BehaviorSubject();
-  final _clearLeakInput = LiveEvent();
+  // Broadcast so the leak-input field can re-subscribe each time the Leak
+  // section is mounted (it is created/disposed on navigation).
+  final _clearLeakInput = PublishSubject<void>();
   final _leakChecklist = BehaviorSubject<List<LeakItem>>();
   final _localNetwork = BehaviorSubject<LocalNetworksResult>();
   final _ping = BehaviorSubject<double?>();
@@ -105,7 +106,7 @@ class AppBloc with AppSystemTray {
     }
     await AppSharedPreferences.addToLeakChecklist(_leakInput!);
     _updateLeakChecklist();
-    _clearLeakInput.fire();
+    _clearLeakInput.add(null);
     _leakInput = null;
   }
 

@@ -1,11 +1,11 @@
 {
-    "name": "ir_net",
-    "short_name": "ir_net",
+    "name": "IRNet",
+    "short_name": "IRNet",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0b0f14",
+    "theme_color": "#33d6c6",
+    "description": "IRNet — freedom does not have a price.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'home.dart';
+import 'ui/theme.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -10,9 +11,7 @@ class App extends StatelessWidget {
     return MaterialApp(
       title: 'IRNet',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
+      theme: buildAppTheme(),
       home: const HomePage(),
     );
   }

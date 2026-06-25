@@ -1,30 +1,41 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// Verifies the Overview summary cards (Leak detection, Data balance, Speed
+// test) act as shortcuts that invoke their "open section" callbacks when
+// tapped. The full app `main()` does platform-plugin init that isn't available
+// under flutter_test, so we exercise the card → callback wiring directly.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:ir_net/main.dart';
+import 'package:ir_net/ui/balance_widgets.dart';
+import 'package:ir_net/ui/leak_widgets.dart';
+import 'package:ir_net/ui/sections.dart';
+import 'package:ir_net/ui/speed_widgets.dart';
 
 void main() {
-  // testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-  //   // Build our app and trigger a frame.
-  //   await tester.pumpWidget(const MyApp());
-  //
-  //   // Verify that our counter starts at 0.
-  //   expect(find.text('0'), findsOneWidget);
-  //   expect(find.text('1'), findsNothing);
-  //
-  //   // Tap the '+' icon and trigger a frame.
-  //   await tester.tap(find.byIcon(Icons.add));
-  //   await tester.pump();
-  //
-  //   // Verify that our counter has incremented.
-  //   expect(find.text('0'), findsNothing);
-  //   expect(find.text('1'), findsOneWidget);
-  // });
+  testWidgets('Overview summary cards invoke their open-section callbacks',
+      (tester) async {
+    final opened = <String>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: OverviewSection(
+              compact: true,
+              onOpenLeaks: () => opened.add('leaks'),
+              onOpenBalance: () => opened.add('balance'),
+              onOpenSpeed: () => opened.add('speed'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byType(LeakSummaryCard));
+    await tester.tap(find.byType(BalanceSummaryCard));
+    await tester.tap(find.byType(SpeedSummaryCard));
+    await tester.pump();
+
+    expect(opened, ['leaks', 'balance', 'speed']);
+  });
 }
