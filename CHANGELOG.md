@@ -1,3 +1,6 @@
+# 1.5.0
+- [all] redesign ui with a modern dark theme
+
 # 1.4.3
 - [all] integrate Sentry for error tracking
 - [all] use HEAD request for ping and leak detection
