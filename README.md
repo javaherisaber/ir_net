@@ -2,7 +2,7 @@
 
 Utility for power users that want to see VPN connection details
 
-<img src="https://github.com/user-attachments/assets/0146de59-bc97-4232-a7fd-eae9389dd87e" width="626" height="455">
+<img src="screenshot.png" width="626" height="455">
 
 ## Features
 - Show location of connection in map
