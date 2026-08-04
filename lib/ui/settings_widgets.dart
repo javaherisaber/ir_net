@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:ir_net/data/shared_preferences.dart';
+import 'package:ir_net/main.dart';
+import 'package:ir_net/utils/flag_tray_icon.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 
 import 'components.dart';
@@ -31,7 +33,17 @@ class _SettingsViewState extends State<SettingsView> {
             title: 'Show leak detection on tray icon',
             subtitle: 'Reflect leak status in the system tray',
             value: AppSharedPreferences.showLeakInSysTray,
-            onChanged: AppSharedPreferences.setShowLeakInSysTray,
+            onChanged: _trayIconSetting(AppSharedPreferences.setShowLeakInSysTray),
+          ),
+          _futureToggle(
+            title: 'Show country flag on tray icon',
+            subtitle: 'Use the flag of the detected IP country as the tray icon',
+            value: AppSharedPreferences.showCountryFlagInSysTray,
+            onChanged:
+                _trayIconSetting(AppSharedPreferences.setShowCountryFlagInSysTray),
+            // The macOS tray only reads icons that ship with the app.
+            enabled: FlagTrayIcon.isSupported,
+            badge: 'Windows & Linux',
           ),
           _launchAtStartup(),
         ]),
@@ -72,11 +84,23 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
+  /// Redraws the tray icon as soon as a setting that affects it is saved,
+  /// instead of waiting for the next IP check.
+  Future<void> Function(bool) _trayIconSetting(
+      Future<void> Function(bool) save) {
+    return (value) async {
+      await save(value);
+      bloc.onSysTrayIconSettingChanged();
+    };
+  }
+
   Widget _futureToggle({
     required String title,
     required String subtitle,
     required Future<bool> value,
     required Future<void> Function(bool) onChanged,
+    bool enabled = true,
+    String? badge,
   }) {
     return FutureBuilder<bool>(
       future: value,
@@ -85,12 +109,15 @@ class _SettingsViewState extends State<SettingsView> {
         return _SettingRow(
           title: title,
           subtitle: subtitle,
+          badge: badge,
           trailing: AppSwitch(
             value: v,
-            onChanged: (next) async {
-              await onChanged(next);
-              if (mounted) setState(() {});
-            },
+            onChanged: enabled
+                ? (next) async {
+                    await onChanged(next);
+                    if (mounted) setState(() {});
+                  }
+                : null,
           ),
         );
       },

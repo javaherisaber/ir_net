@@ -57,6 +57,14 @@ class AppSharedPreferences {
     (await _preference).setBool(_keyShowLeakInSysTray, value);
   }
 
+  static Future<bool> get showCountryFlagInSysTray async {
+    return (await _preference).getBool(_keyShowCountryFlagInSysTray) ?? false;
+  }
+
+  static Future<void> setShowCountryFlagInSysTray(bool value) async {
+    (await _preference).setBool(_keyShowCountryFlagInSysTray, value);
+  }
+
   static Future<bool> get isLeakPrePopulated async {
     return (await _preference).getBool(_keyIsLeakPrePopulated) ?? false;
   }
@@ -93,6 +101,7 @@ class AppSharedPreferences {
 
   static const _keyIsLeakPrePopulated = 'isLeakPrePopulated';
   static const _keyShowLeakInSysTray = 'showLeakInSysTray';
+  static const _keyShowCountryFlagInSysTray = 'showCountryFlagInSysTray';
   static const _keyLeakCheckList = 'leakChecklist';
   static const _keyKerioIP = 'kerioIP';
   static const _keyKerioUsername = 'kerioUsername';
