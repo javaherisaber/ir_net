@@ -135,6 +135,7 @@ class FlagTrayIcon {
     flag.paint(canvas);
     canvas.restore();
     _paintBorder(canvas, bounds, size);
+    _paintBrandMark(canvas, bounds);
     if (leaked) {
       _paintLeakBadge(canvas, size.toDouble());
     }
@@ -165,6 +166,46 @@ class FlagTrayIcon {
         ..strokeWidth = width
         ..color = const Color(0x59000000),
     );
+  }
+
+  /// Stamps the IRNet shield on the flag so the tray icon still reads as this
+  /// app. Sits bottom left, diagonally opposite the leak badge.
+  static void _paintBrandMark(Canvas canvas, Rect bounds) {
+    final height = bounds.height * 0.42;
+    final width = height * 0.86;
+    final left = bounds.left + bounds.width * 0.04;
+    final top = bounds.bottom - height - bounds.height * 0.06;
+
+    // Same silhouette as the launcher icon: hexagonal shoulders, round point.
+    final shield = Path()
+      ..moveTo(left + width / 2, top)
+      ..lineTo(left + width, top + height * 0.22)
+      ..lineTo(left + width, top + height * 0.5)
+      ..quadraticBezierTo(
+        left + width,
+        top + height * 0.88,
+        left + width / 2,
+        top + height,
+      )
+      ..quadraticBezierTo(
+        left,
+        top + height * 0.88,
+        left,
+        top + height * 0.5,
+      )
+      ..lineTo(left, top + height * 0.22)
+      ..close();
+
+    // Dark rim first so the mark survives on light flags.
+    canvas.drawPath(
+      shield,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(1, bounds.height / 20)
+        ..strokeJoin = StrokeJoin.round
+        ..color = const Color(0xFF0B0F14),
+    );
+    canvas.drawPath(shield, Paint()..color = const Color(0xFF33D6C6));
   }
 
   static void _paintLeakBadge(Canvas canvas, double size) {
