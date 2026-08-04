@@ -115,7 +115,13 @@ class ConnectionChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.public, size: 15, color: AppColors.accent),
+              CountryFlagTile(
+                countryCode: info.countryCode,
+                size: 15,
+                width: 20,
+                iconSize: 15,
+                radius: 3,
+              ),
               const SizedBox(width: 9),
               Text(label, style: AppText.ui(13, FontWeight.w500, AppColors.text2)),
               const SizedBox(width: 9),
@@ -173,7 +179,12 @@ class ConnectionHeroCard extends StatelessWidget {
       padding: const EdgeInsets.all(22),
       child: Row(
         children: [
-          const IconTile(icon: Icons.public, size: 56, iconSize: 28, radius: 16),
+          CountryFlagTile(
+            countryCode: info.countryCode,
+            size: 56,
+            iconSize: 28,
+            radius: 16,
+          ),
           const SizedBox(width: 20),
           Expanded(
             child: Column(
@@ -209,7 +220,7 @@ class ConnectionHeroCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const IconTile(icon: Icons.public, size: 42, iconSize: 22),
+              CountryFlagTile(countryCode: info.countryCode, size: 42, iconSize: 22),
               VpnPill(state),
             ],
           ),

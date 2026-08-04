@@ -1,3 +1,4 @@
+import 'package:country_flags/country_flags.dart';
 import 'package:flutter/material.dart';
 
 import 'theme.dart';
@@ -52,6 +53,57 @@ class AppCard extends StatelessWidget {
           onTap: onTap,
           child: Padding(padding: padding, child: child),
         ),
+      ),
+    );
+  }
+}
+
+/// Flag of [countryCode], falling back to the globe marker while the country
+/// is still unknown (or has no flag of its own).
+///
+/// Sized to a rounded square like [IconTile] so it can stand in for the globe
+/// wherever the current location is shown.
+class CountryFlagTile extends StatelessWidget {
+  const CountryFlagTile({
+    super.key,
+    required this.countryCode,
+    this.size = 44,
+    this.width,
+    this.iconSize = 22,
+    this.radius = 13,
+  });
+
+  final String? countryCode;
+  final double size;
+
+  /// Defaults to [size] (a square tile); set it wider for a flag-shaped swatch.
+  final double? width;
+  final double iconSize;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final code = countryCode;
+    if (code == null || FlagCode.fromCountryCode(code.toUpperCase()) == null) {
+      return IconTile(
+        icon: Icons.public,
+        size: size,
+        iconSize: iconSize,
+        radius: radius,
+      );
+    }
+    final tileWidth = width ?? size;
+    return Container(
+      width: tileWidth,
+      height: size,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: AppColors.line2),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: CountryFlag.fromCountryCode(
+        code,
+        theme: ImageTheme(width: tileWidth, height: size),
       ),
     );
   }
