@@ -30,6 +30,9 @@ dependencies:
   window_manager: ^0.3.9
   flutter_speedtest: ^0.2.0
   country_flags: ^4.0.0
+  # Rasterising country flags into system tray icons (see utils/flag_tray_icon.dart)
+  jovial_svg: ^1.1.28
+  image: ^4.8.0
 
 dev_dependencies:
   sentry_dart_plugin: ^3.2.0

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:ir_net/data/shared_preferences.dart';
+import 'package:ir_net/utils/flag_tray_icon.dart';
 import 'package:ir_net/utils/platform.dart';
 import 'package:system_tray/system_tray.dart';
 
@@ -25,9 +26,18 @@ mixin AppSystemTray {
   }
 
   void updateIconWhenCountryLoaded(
-      bool foundLeak, bool isIran, String tooltip) async {
+      bool foundLeak, bool isIran, String? countryCode, String tooltip) async {
+    final showLeak = foundLeak && (await AppSharedPreferences.showLeakInSysTray);
+    if (await AppSharedPreferences.showCountryFlagInSysTray) {
+      final flagIcon = await FlagTrayIcon.pathFor(countryCode, leaked: showLeak);
+      if (flagIcon != null) {
+        updateSysTrayIcon(tooltip, flagIcon);
+        return;
+      }
+      // Unknown country: keep the default icons below.
+    }
     var globIcon = _getIcon('assets/globe');
-    if (foundLeak && (await AppSharedPreferences.showLeakInSysTray)) {
+    if (showLeak) {
       globIcon = _getIcon('assets/globe_leaked');
     }
     final iconPath = isIran ? _getIcon('assets/iran') : globIcon;
