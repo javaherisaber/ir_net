@@ -15,6 +15,10 @@ Utility for power users that want to see VPN connection details
 - Connect through proxy vpn types (eg. ShadowSocks, VMess, ...)
 - Auto Connect to Kerio Network
 - Show usage and statistics of Kerio network
+- Network quality monitor: live ping, jitter, packet loss, real delay (HTTPS) and uptime with a 0–100 score, kept per exit IP so you can compare VPN servers and locations over time
+- Online call quality: voice and video call MOS estimated from the probes, plus an on-demand call test (400 voice packets and a bandwidth check)
+- Export network quality to share with a network admin: a PDF report (key findings, charts, server comparison), the raw data as CSV files in a ZIP, or a text summary. Desktops save to Downloads; Android and iOS open the share sheet
+- Internet usage per app, domain and country of destination with time ranges (10 min to all time) on macOS and Linux; per app on Windows (needs an admin prompt) and Android (needs Usage access)
 
 ## Build windows installer
 Run the build script which updates the version, builds the app, and compiles the installer:

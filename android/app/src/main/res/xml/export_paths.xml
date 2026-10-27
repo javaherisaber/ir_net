@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Exported reports are written to cache/exports/ and shared from there. -->
+<paths>
+    <cache-path name="exports" path="exports/" />
+</paths>

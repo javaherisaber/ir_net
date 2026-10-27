@@ -7,6 +7,7 @@ environment:
   flutter: "3.29.0"
 
 dependencies:
+  archive: ^4.0.0
   sentry_flutter: ^9.8.0
   flutter:
     sdk: flutter
@@ -30,6 +31,16 @@ dependencies:
   window_manager: ^0.3.9
   flutter_speedtest: ^0.2.0
   country_flags: ^4.0.0
+  crypto: ^3.0.0
+  ffi: ^2.1.0
+  path: ^1.9.0
+  sqflite: ^2.4.2
+  sqflite_common: ^2.5.6
+  # Desktop SQLite via FFI. Kept on sqlite3 2.x: it loads the system SQLite at
+  # runtime (winsqlite3.dll on Windows), so no native build step is added.
+  sqflite_common_ffi: ">=2.3.7 <2.4.0"
+  sqlite3: ^2.9.4
+  pdf: ^3.12.0
 
 dev_dependencies:
   sentry_dart_plugin: ^3.2.0
@@ -39,7 +50,7 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.1
   msix: ^3.6.3
   win32: ^5.11.0
-  sqflite: ^2.4.1
+  fake_async: ^1.3.1
 
 msix_config:
   display_name: IRNet
@@ -60,6 +71,9 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
+    # Static Space Grotesk weights for the PDF report (PDFs can't use the
+    # variable font's weight axis).
+    - assets/fonts/pdf/
   fonts:
     - family: SpaceGrotesk
       fonts:

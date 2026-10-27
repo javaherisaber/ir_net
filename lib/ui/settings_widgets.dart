@@ -2,9 +2,12 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:ir_net/data/shared_preferences.dart';
+import 'package:ir_net/main.dart';
+import 'package:ir_net/utils/usage_collectors.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 
 import 'components.dart';
+import 'quality_widgets.dart';
 import 'theme.dart';
 
 class SettingsView extends StatefulWidget {
@@ -50,7 +53,106 @@ class _SettingsViewState extends State<SettingsView> {
             ),
           ),
         ]),
+        const SizedBox(height: 18),
+        _group('Network quality', [
+          _futureToggle(
+            title: 'Quality monitoring',
+            subtitle: 'Measure ping, jitter and packet loss in the background',
+            value: AppSharedPreferences.qualityMonitoring,
+            onChanged: bloc.quality.setEnabled,
+          ),
+          _probeInterval(),
+          _clearRow(
+            title: 'Clear quality history',
+            subtitle: 'Deletes all measurements and server names',
+            onConfirm: bloc.quality.clearHistory,
+          ),
+        ]),
+        const SizedBox(height: 18),
+        _group('Data usage', [
+          if (usageUnsupportedReason() == null)
+            _futureToggle(
+              title: 'Track usage per app',
+              subtitle: 'Attribute traffic to apps, domains and countries',
+              value: AppSharedPreferences.usageTracking,
+              onChanged: bloc.usage.setTracking,
+            )
+          else
+            _SettingRow(
+              title: 'Track usage per app',
+              subtitle: usageUnsupportedReason()!,
+              trailing: const AppSwitch(value: false, onChanged: null),
+            ),
+          _futureToggle(
+            title: 'Look up destinations',
+            subtitle: 'Country & owner from geojs.io (HTTPS), names via reverse DNS. VPN server addresses are never sent',
+            value: AppSharedPreferences.usageLookups,
+            onChanged: bloc.usage.setLookups,
+          ),
+          _clearRow(
+            title: 'Clear usage history',
+            subtitle: 'Deletes recorded traffic and looked-up addresses',
+            onConfirm: bloc.usage.clearHistory,
+          ),
+        ]),
       ],
+    );
+  }
+
+  Widget _probeInterval() {
+    return FutureBuilder<int>(
+      future: AppSharedPreferences.qualityInterval,
+      builder: (context, snapshot) {
+        final seconds = snapshot.data ?? 2;
+        return _SettingRow(
+          title: 'Probe interval',
+          subtitle: 'Shorter catches more glitches · ≈ ${estimatedDailyMegabytes(seconds)} MB of data a day',
+          trailing: SegmentedPills<int>(
+            values: const [2, 5, 10],
+            selected: seconds,
+            label: (v) => '${v}s',
+            onSelected: (v) async {
+              await bloc.quality.setIntervalSeconds(v);
+              if (mounted) setState(() {});
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _clearRow({
+    required String title,
+    required String subtitle,
+    required Future<void> Function() onConfirm,
+  }) {
+    return _SettingRow(
+      title: title,
+      subtitle: subtitle,
+      trailing: AppButton(
+        label: 'Clear',
+        kind: AppButtonKind.danger,
+        height: 34,
+        onPressed: () async {
+          final ok = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: AppColors.card,
+              title: Text('$title?', style: AppText.ui(16, FontWeight.w700, AppColors.text)),
+              content: Text('This can\'t be undone.',
+                  style: AppText.ui(13, FontWeight.w400, AppColors.text2)),
+              actions: [
+                TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text('Clear', style: AppText.ui(14, FontWeight.w600, AppColors.bad)),
+                ),
+              ],
+            ),
+          );
+          if (ok == true) await onConfirm();
+        },
+      ),
     );
   }
 

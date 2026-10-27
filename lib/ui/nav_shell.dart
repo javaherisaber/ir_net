@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:ir_net/main.dart';
 import 'package:ir_net/utils/app_info.dart';
 import 'package:ir_net/utils/platform.dart';
+import 'package:ir_net/utils/usage_collectors.dart';
 
 import 'components.dart';
 import 'connection_widgets.dart';
@@ -35,6 +36,8 @@ const _navItems = <_NavItem>[
   _NavItem('Connection', Icons.public),
   _NavItem('Data balance', Icons.account_balance_wallet_outlined),
   _NavItem('Speed test', Icons.speed),
+  _NavItem('Network quality', Icons.network_check),
+  _NavItem('Data usage', Icons.data_usage),
   _NavItem('Settings', Icons.settings_outlined, showChip: false),
 ];
 
@@ -59,6 +62,8 @@ class _DesktopShellState extends State<_DesktopShell> {
           onOpenLeaks: () => _select(1),
           onOpenBalance: () => _select(3),
           onOpenSpeed: () => _select(4),
+          onOpenQuality: () => _select(5),
+          onOpenUsage: () => _select(6),
         );
       case 1:
         return const LeakSection();
@@ -68,6 +73,10 @@ class _DesktopShellState extends State<_DesktopShell> {
         return const BalanceSection();
       case 4:
         return const SpeedSection();
+      case 5:
+        return const QualitySection();
+      case 6:
+        return const UsageSection();
       default:
         return const SettingsView();
     }
@@ -235,12 +244,17 @@ class _MobileTab {
   final IconData icon;
 }
 
-const _mobileTabs = <_MobileTab>[
-  _MobileTab('Home', Icons.grid_view_rounded),
-  _MobileTab('Leaks', Icons.verified_user_outlined),
-  _MobileTab('Speed', Icons.speed),
-  _MobileTab('Balance', Icons.account_balance_wallet_outlined),
+/// Data usage has a tab only where the OS reports per-app traffic.
+final _mobileTabs = <_MobileTab>[
+  const _MobileTab('Home', Icons.grid_view_rounded),
+  const _MobileTab('Leaks', Icons.verified_user_outlined),
+  const _MobileTab('Quality', Icons.network_check),
+  if (usageUnsupportedReason() == null) const _MobileTab('Usage', Icons.data_usage),
+  const _MobileTab('Speed', Icons.speed),
+  const _MobileTab('Balance', Icons.account_balance_wallet_outlined),
 ];
+
+int _mobileIndex(String label) => _mobileTabs.indexWhere((t) => t.label == label);
 
 class _MobileShell extends StatefulWidget {
   const _MobileShell();
@@ -269,6 +283,8 @@ class _MobileShellState extends State<_MobileShell> {
             _homeTab(),
             _tab('Leak detection', const LeakSection(compact: true),
                 trailing: const _LeakOkPill()),
+            _tab('Network quality', const QualitySection(compact: true)),
+            if (usageUnsupportedReason() == null) _tab('Data usage', const UsageSection(compact: true)),
             _tab('Speed test', const SpeedSection(compact: true)),
             _tab('Data balance', const BalanceSection(compact: true)),
           ],
@@ -313,9 +329,11 @@ class _MobileShellState extends State<_MobileShell> {
             child: OverviewSection(
               compact: true,
               onOpenConnection: _openConnection,
-              onOpenLeaks: () => setState(() => _index = 1),
-              onOpenSpeed: () => setState(() => _index = 2),
-              onOpenBalance: () => setState(() => _index = 3),
+              onOpenLeaks: () => setState(() => _index = _mobileIndex('Leaks')),
+              onOpenQuality: () => setState(() => _index = _mobileIndex('Quality')),
+              onOpenUsage: () => setState(() => _index = _mobileIndex('Usage')),
+              onOpenSpeed: () => setState(() => _index = _mobileIndex('Speed')),
+              onOpenBalance: () => setState(() => _index = _mobileIndex('Balance')),
             ),
           ),
         ),

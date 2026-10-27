@@ -6,14 +6,18 @@ import 'package:ir_net/utils/platform.dart';
 import 'package:system_tray/system_tray.dart';
 
 mixin AppSystemTray {
-  final SystemTray _systemTray = SystemTray();
-  final AppWindow _appWindow = AppWindow();
+  // The tray plugin only exists on desktops: creating AppWindow already calls
+  // it, so on phones there are no handles and every tray call is a no-op.
+  final SystemTray? _systemTray = PlatformUtils.isDesktop ? SystemTray() : null;
+  final AppWindow? _appWindow = PlatformUtils.isDesktop ? AppWindow() : null;
 
   void onSystemTrayRefreshButtonClick();
 
+  void onSystemTrayExitButtonClick();
+
   void updateSysTrayIcon(String tooltip, String iconPath) {
-    _systemTray.setToolTip(tooltip);
-    _systemTray.setImage(iconPath);
+    _systemTray?.setToolTip(tooltip);
+    _systemTray?.setImage(iconPath);
   }
 
   String _getIcon(String iconPath) {
@@ -26,6 +30,7 @@ mixin AppSystemTray {
 
   void updateIconWhenCountryLoaded(
       bool foundLeak, bool isIran, String tooltip) async {
+    if (_systemTray == null) return;
     var globIcon = _getIcon('assets/globe');
     if (foundLeak && (await AppSharedPreferences.showLeakInSysTray)) {
       globIcon = _getIcon('assets/globe_leaked');
@@ -35,31 +40,33 @@ mixin AppSystemTray {
   }
 
   void setSystemTrayStatusToOffline() {
-    _systemTray.setImage(_getIcon('assets/offline'));
-    _systemTray.setToolTip('IRNet: OFFLINE');
+    _systemTray?.setImage(_getIcon('assets/offline'));
+    _systemTray?.setToolTip('IRNet: OFFLINE');
   }
 
   void setSystemTrayStatusToNetworkError() {
-    _systemTray.setImage(_getIcon('assets/network_error'));
-    _systemTray.setToolTip('IRNet: Network error');
+    _systemTray?.setImage(_getIcon('assets/network_error'));
+    _systemTray?.setToolTip('IRNet: Network error');
   }
 
   void destroySystemTray() {
-    _systemTray.destroy();
+    _systemTray?.destroy();
   }
 
   Future<void> initSystemTray() async {
-    if (!PlatformUtils.isDesktop) {
+    final systemTray = _systemTray;
+    final appWindow = _appWindow;
+    if (systemTray == null || appWindow == null) {
       return;
     }
-    await _systemTray.initSystemTray(
+    await systemTray.initSystemTray(
       title: null,
       iconPath: _getIcon('assets/loading'),
     );
     final Menu menu = Menu();
     await menu.buildFrom([
-      MenuItemLabel(label: 'Show', onClicked: (menuItem) => _appWindow.show()),
-      MenuItemLabel(label: 'Hide', onClicked: (menuItem) => _appWindow.hide()),
+      MenuItemLabel(label: 'Show', onClicked: (menuItem) => appWindow.show()),
+      MenuItemLabel(label: 'Hide', onClicked: (menuItem) => appWindow.hide()),
       MenuItemLabel(
         label: 'Refresh',
         onClicked: (menuItem) {
@@ -68,24 +75,21 @@ mixin AppSystemTray {
       ),
       MenuItemLabel(
         label: 'Exit',
-        onClicked: (menuItem) {
-          _systemTray.destroy();
-          exit(0);
-        },
+        onClicked: (menuItem) => onSystemTrayExitButtonClick(),
       ),
     ]);
 
-    await _systemTray.setContextMenu(menu);
-    _systemTray.registerSystemTrayEventHandler((eventName) {
+    await systemTray.setContextMenu(menu);
+    systemTray.registerSystemTrayEventHandler((eventName) {
       debugPrint("eventName: $eventName");
       if (eventName == kSystemTrayEventClick) {
-        _appWindow.show();
+        appWindow.show();
       } else if (eventName == kSystemTrayEventRightClick) {
-        _systemTray.popUpContextMenu();
+        systemTray.popUpContextMenu();
       }
     });
 
-    _appWindow.hide();
-    _systemTray.setToolTip('IRNet: NOT READY');
+    appWindow.hide();
+    systemTray.setToolTip('IRNet: NOT READY');
   }
 }

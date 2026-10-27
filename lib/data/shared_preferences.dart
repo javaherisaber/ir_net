@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppSharedPreferences {
@@ -85,6 +86,54 @@ class AppSharedPreferences {
     (await _preference).setString(_keyLeakCheckList, previousChecklist.join(';'));
   }
 
+  static Future<bool> get qualityMonitoring async {
+    return (await _preference).getBool(_keyQualityMonitoring) ?? true;
+  }
+
+  static Future<void> setQualityMonitoring(bool value) async {
+    (await _preference).setBool(_keyQualityMonitoring, value);
+  }
+
+  /// Seconds between quality probes.
+  static Future<int> get qualityInterval async {
+    return (await _preference).getInt(_keyQualityInterval) ?? 2;
+  }
+
+  static Future<void> setQualityInterval(int value) async {
+    (await _preference).setInt(_keyQualityInterval, value);
+  }
+
+  static Future<bool> get usageTracking async {
+    return (await _preference).getBool(_keyUsageTracking) ?? true;
+  }
+
+  static Future<void> setUsageTracking(bool value) async {
+    (await _preference).setBool(_keyUsageTracking, value);
+  }
+
+  /// Whether destination addresses may be looked up (country and owner via
+  /// geojs.io, host names via reverse DNS).
+  static Future<bool> get usageLookups async {
+    return (await _preference).getBool(_keyUsageLookups) ?? true;
+  }
+
+  static Future<void> setUsageLookups(bool value) async {
+    (await _preference).setBool(_keyUsageLookups, value);
+  }
+
+  /// Whether past per-app usage the OS kept has been imported (once).
+  static Future<bool> get usageImported async {
+    return (await _preference).getBool(_keyUsageImported) ?? false;
+  }
+
+  static Future<void> setUsageImported(bool value) async {
+    (await _preference).setBool(_keyUsageImported, value);
+  }
+
+  /// Forgets the cached instance so tests can start from fresh mock values.
+  @visibleForTesting
+  static void resetCache() => __instance = null;
+
   static SharedPreferences? __instance;
   static Future<SharedPreferences> get _preference async {
     __instance ??= await SharedPreferences.getInstance();
@@ -100,4 +149,9 @@ class AppSharedPreferences {
   static const _keyKerioAutoLogin = 'kerioAutoLogin';
   static const _keyKerioLowBalanceToastCount = 'kerioLowBalanceToastCount';
   static const _keyKerioLowBalanceToastDate = 'kerioLowBalanceToastDate';
+  static const _keyQualityMonitoring = 'qualityMonitoring';
+  static const _keyQualityInterval = 'qualityInterval';
+  static const _keyUsageTracking = 'usageTracking';
+  static const _keyUsageLookups = 'usageLookups';
+  static const _keyUsageImported = 'usageImported';
 }

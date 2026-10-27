@@ -32,8 +32,19 @@ class AppColors {
   /// Translucent accent fills used for icon tiles / pills.
   static const accentSoft = Color(0x1F33D6C6); // ~.12
   static const goodSoft = Color(0x1F4ADE80);
+  static const warnSoft = Color(0x1FFBBF24);
   static const badSoft = Color(0x10FB6A6A);
   static const badBorder = Color(0x40FB6A6A);
+
+  /// Chart series, in fixed order. Validated as a pair on [card] (lightness
+  /// band, colour-blind separation, contrast); the teal accent is too light
+  /// to sit next to them, so it only marks the single headline series.
+  static const series1 = Color(0xFF3987E5);
+  static const series2 = Color(0xFFD95926);
+
+  /// Chart gridlines / baseline (hairlines, one step off the surface).
+  static const grid = Color(0x12FFFFFF);
+  static const baseline = Color(0x26FFFFFF);
 }
 
 class AppFonts {

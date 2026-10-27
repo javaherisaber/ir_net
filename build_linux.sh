@@ -90,7 +90,7 @@ Version: $VERSION
 Section: utils
 Priority: optional
 Architecture: amd64
-Depends: libgtk-3-0, libglib2.0-0
+Depends: libgtk-3-0, libglib2.0-0, libsqlite3-0, iproute2
 Maintainer: $MAINTAINER_NAME <$MAINTAINER_EMAIL>
 Description: IRNet – A Flutter desktop app for Linux.
  IRNet is a tool to show network connection details.

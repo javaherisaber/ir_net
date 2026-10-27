@@ -14,6 +14,8 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val CHANNEL = "ir_net/system_events"
+        private const val USAGE_CHANNEL = "ir_net/net_usage"
+        private const val SHARE_CHANNEL = "ir_net/share"
         private const val REQUEST_NOTIFICATION_PERMISSION = 1001
     }
 
@@ -23,6 +25,12 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
 
         notificationManager = IpNotificationManager(this)
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, USAGE_CHANNEL)
+            .setMethodCallHandler(NetworkUsageHandler(applicationContext))
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL)
+            .setMethodCallHandler(ShareHandler(this))
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->

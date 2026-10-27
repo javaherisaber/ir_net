@@ -18,6 +18,8 @@ import 'package:latlng/latlng.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:win_toast/win_toast.dart';
 
+import 'quality_bloc.dart';
+import 'usage_bloc.dart';
 import 'utils/kerio.dart';
 
 class AppBloc with AppSystemTray {
@@ -35,6 +37,24 @@ class AppBloc with AppSystemTray {
   final _uploadSpeed = BehaviorSubject<double?>();
   final _speedTestStatus = BehaviorSubject<String>();
   final _kerioBalance = BehaviorSubject<KerioBalance>();
+
+  QualityBloc? _quality;
+  UsageBloc? _usage;
+
+  /// Network quality monitoring (probes are attributed to the public IP).
+  QualityBloc get quality => _quality ??= QualityBloc(
+        proxy: () => _proxyServer,
+        onRecovered: () => _checkIpLocation(),
+      );
+
+  @visibleForTesting
+  set quality(QualityBloc value) => _quality = value;
+
+  /// Per-app / per-destination traffic.
+  UsageBloc get usage => _usage ??= UsageBloc(httpClient: () => _client);
+
+  @visibleForTesting
+  set usage(UsageBloc value) => _usage = value;
 
   bool _isPingingGoogle = false;
   bool _foundALeakedSite = false;
@@ -72,6 +92,8 @@ class AppBloc with AppSystemTray {
     _loginKerio(false);
     _initializeLeakChecklist();
     _initializeNativeChannel();
+    quality.initialize();
+    usage.initialize();
   }
 
   void _initializeNativeChannel() {
@@ -189,6 +211,7 @@ class AppBloc with AppSystemTray {
 
   void _subscribeConnectivityChange() {
     Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> result) async {
+      quality.onNetworkChanged();
       if (result.contains(ConnectivityResult.none)) {
         setSystemTrayStatusToOffline();
       } else {
@@ -266,6 +289,7 @@ class AppBloc with AppSystemTray {
       _latLng.sink.add(LatLng(json['lat'], json['lon']));
     }
     _ipLookupResult.value = json;
+    quality.onIpLookup(json);
     _updateCountryTrayIcon();
     _updateAndroidNotification(json);
   }
@@ -358,6 +382,9 @@ class AppBloc with AppSystemTray {
     destroySystemTray();
     _cancelAndroidNotification();
     _stopAndroidService();
+    // Persist the last few seconds of quality / usage data.
+    await Future.wait([quality.dispose(), usage.dispose()])
+        .timeout(const Duration(seconds: 2), onTimeout: () => []);
     exit(0);
   }
 
@@ -369,6 +396,9 @@ class AppBloc with AppSystemTray {
   void onSystemTrayRefreshButtonClick() {
     _handleRefresh();
   }
+
+  @override
+  void onSystemTrayExitButtonClick() => onExitClick();
 
   void _handleRefresh() async {
     await _checkProxySettings();
