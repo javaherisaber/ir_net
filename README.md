@@ -8,6 +8,7 @@ Utility for power users that want to see VPN connection details
 - Show location of connection in map
 - Leak detection on your urls
 - SysTray icon without the app being open
+- Show the flag of the current IP country on the SysTray icon (optional, Windows & Linux)
 - Start by startup
 - Ability to minimize and hide from taskbar
 - Show details of your ISP

@@ -391,6 +391,12 @@ class AppBloc with AppSystemTray {
     _handleRefresh();
   }
 
+  /// Applies a tray icon setting (country flag, leak status) right away instead
+  /// of waiting for the next IP check.
+  void onSysTrayIconSettingChanged() {
+    _updateCountryTrayIcon();
+  }
+
   @override
   void onSystemTrayRefreshButtonClick() {
     _handleRefresh();
@@ -415,6 +421,7 @@ class AppBloc with AppSystemTray {
       return;
     }
     final country = json['country'];
+    final countryCode = json['countryCode'];
     bool isIran = country == 'Iran';
     var tooltip = '';
     if (_foundALeakedSite) {
@@ -422,7 +429,7 @@ class AppBloc with AppSystemTray {
     } else {
       tooltip = 'IRNet: $country';
     }
-    updateIconWhenCountryLoaded(_foundALeakedSite, isIran, tooltip);
+    updateIconWhenCountryLoaded(_foundALeakedSite, isIran, countryCode, tooltip);
     debugPrint('Country => $country');
   }
 

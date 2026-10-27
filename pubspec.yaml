@@ -41,6 +41,9 @@ dependencies:
   sqflite_common_ffi: ">=2.3.7 <2.4.0"
   sqlite3: ^2.9.4
   pdf: ^3.12.0
+  # Rasterising country flags into system tray icons (see utils/flag_tray_icon.dart)
+  jovial_svg: ^1.1.28
+  image: ^4.8.0
 
 dev_dependencies:
   sentry_dart_plugin: ^3.2.0

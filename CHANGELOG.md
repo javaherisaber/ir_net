@@ -1,3 +1,7 @@
+# Unreleased
+- [windows][linux] optionally show the flag of the current IP country as the system tray icon
+- [all] show the current country flag in the connection card and the header chip
+
 # 1.5.0
 - [all] redesign ui with a modern dark theme
 
