@@ -79,6 +79,10 @@ class AppBloc with AppSystemTray {
     pathResponseTime: '/ping',
   );
 
+  /// Creates the client for Kerio requests; tests swap in a fake.
+  @visibleForTesting
+  http.Client Function() kerioClient = http.Client.new;
+
   void onLeakInputChanged(String value) {
     _leakInput = value;
   }
@@ -142,17 +146,7 @@ class AppBloc with AppSystemTray {
     if (!manual && !auto) {
       return Future.value();
     }
-    final ip = await AppSharedPreferences.kerioIP;
-    final username = await AppSharedPreferences.kerioUsername;
-    final password = await AppSharedPreferences.kerioPassword;
-    final url = 'http://$ip/internal/dologin.php';
-    await http.post(
-      Uri.parse(url),
-      body: {
-        'kerio_username': username,
-        'kerio_password': password,
-      },
-    );
+    await KerioUtils.login(client: kerioClient);
   }
 
   Future<void> _updateLeakChecklist() async {
@@ -310,7 +304,12 @@ class AppBloc with AppSystemTray {
   }
 
   void _checkKerioBalance() async {
-    final balance = await KerioUtils.getAccountBalance();
+    final balance = await KerioUtils.getAccountBalance(client: kerioClient);
+    if (balance == null) {
+      // Not set up yet, or the server couldn't be reached.
+      _kerioBalance.value = KerioBalance.none;
+      return;
+    }
     var lowBalanceToastCount = await AppSharedPreferences.kerioLowBalanceToastCount;
     var lastToastDate = await AppSharedPreferences.kerioLowBalanceToastDate;
 

@@ -1,25 +1,66 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:ir_net/data/kerio.dart';
 
 import '../data/shared_preferences.dart';
 
-class KerioUtils {
-  static Future<KerioBalance> getAccountBalance() async {
-    final ip = await AppSharedPreferences.kerioIP;
-    final username = await AppSharedPreferences.kerioUsername;
-    final password = await AppSharedPreferences.kerioPassword;
+typedef _KerioAccount = ({String ip, String username, String password});
 
-    // Step 1: Login and extract cookie
-    final loginUrl = 'http://$ip/internal/dologin.php';
-    final loginResponse = await http.post(
-      Uri.parse(loginUrl),
+class KerioUtils {
+  /// Logs in to the Kerio web interface with the saved credentials.
+  static Future<void> login({http.Client Function() client = http.Client.new}) async {
+    await _withAccount('login', client, _login);
+  }
+
+  /// The account's monthly balance, or null when Kerio isn't set up or the
+  /// check fails.
+  static Future<KerioBalance?> getAccountBalance({http.Client Function() client = http.Client.new}) {
+    return _withAccount('balance check', client, _fetchBalance);
+  }
+
+  /// Runs [request] with the saved Kerio address and credentials. While any of
+  /// them is missing (as on a fresh install) nothing is sent and null is
+  /// returned; failures are logged and return null as well.
+  static Future<T?> _withAccount<T>(
+    String name,
+    http.Client Function() client,
+    Future<T> Function(http.Client client, _KerioAccount account) request,
+  ) async {
+    final ip = (await AppSharedPreferences.kerioIP)?.trim() ?? '';
+    final username = await AppSharedPreferences.kerioUsername ?? '';
+    final password = await AppSharedPreferences.kerioPassword ?? '';
+    if (ip.isEmpty || username.isEmpty || password.isEmpty) {
+      return null;
+    }
+    final c = client();
+    try {
+      return await request(c, (ip: ip, username: username, password: password));
+    } catch (e) {
+      // Unreachable server, rejected login or an unexpected response.
+      debugPrint('Kerio $name failed: $e');
+      return null;
+    } finally {
+      c.close();
+    }
+  }
+
+  static Future<http.Response> _login(http.Client client, _KerioAccount account) {
+    return client.post(
+      Uri.parse('http://${account.ip}/internal/dologin.php'),
       body: {
-        'kerio_username': username,
-        'kerio_password': password,
+        'kerio_username': account.username,
+        'kerio_password': account.password,
       },
     );
+  }
+
+  static Future<KerioBalance> _fetchBalance(http.Client client, _KerioAccount account) async {
+    final ip = account.ip;
+
+    // Step 1: Login and extract cookie
+    final loginResponse = await _login(client, account);
 
     final cookieHeader = loginResponse.headers['set-cookie'];
     if (cookieHeader == null || !cookieHeader.contains('TOKEN_CONTROL_WEBIFACE=')) {
@@ -77,7 +118,7 @@ class KerioUtils {
     });
 
     // Step 4: Send request
-    final balanceResponse = await http.post(
+    final balanceResponse = await client.post(
       Uri.parse(balanceUrl),
       headers: headers,
       body: body,
