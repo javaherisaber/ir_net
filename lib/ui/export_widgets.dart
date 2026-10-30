@@ -1,14 +1,18 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:ir_net/data/quality.dart';
 import 'package:ir_net/data/quality_report.dart';
 import 'package:ir_net/main.dart';
 import 'package:ir_net/utils/app_info.dart';
 import 'package:ir_net/utils/file_delivery.dart';
+import 'package:ir_net/utils/image_clipboard.dart';
 import 'package:ir_net/utils/quality_export.dart';
 import 'package:ir_net/utils/quality_report_pdf.dart';
 
@@ -87,6 +91,115 @@ Future<void> showQualityExportDialog(BuildContext context, {QualityExporter? exp
       context: context,
       builder: (_) => QualityExportDialog(exporter: exporter ?? QualityExporter.create()),
     );
+
+/// Copies quality cards to the clipboard as one PNG, ready to paste into a
+/// chat.
+class QualityScreenshotButton extends StatefulWidget {
+  const QualityScreenshotButton({super.key, required this.cards});
+
+  /// RepaintBoundary keys of the cards in the image, top to bottom.
+  final List<GlobalKey> cards;
+
+  @override
+  State<QualityScreenshotButton> createState() => _QualityScreenshotButtonState();
+}
+
+class _QualityScreenshotButtonState extends State<QualityScreenshotButton> {
+  bool _busy = false;
+  bool _copied = false;
+  Timer? _copiedTimer;
+
+  @override
+  void dispose() {
+    _copiedTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _copy() async {
+    // At least 2x, so text stays sharp when a chat app scales the image.
+    final ratio = max(MediaQuery.devicePixelRatioOf(context), 2.0);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    try {
+      final image = await captureCards(widget.cards, pixelRatio: ratio);
+      try {
+        await ImageClipboard.instance.copy(image, name: qualityFileName(DateTime.now(), 'png'));
+      } finally {
+        image.dispose();
+      }
+      if (!mounted) return;
+      setState(() => _copied = true);
+      _copiedTimer?.cancel();
+      _copiedTimer = Timer(const Duration(seconds: 2), () {
+        if (mounted) setState(() => _copied = false);
+      });
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.card2,
+        content: Text('Could not copy the screenshot: $e', style: AppText.ui(13, FontWeight.w500, AppColors.text)),
+      ));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppButton(
+      label: _busy ? 'Copying…' : (_copied ? 'Copied' : 'Copy screenshot'),
+      icon: _copied ? Icons.check_rounded : Icons.photo_camera_outlined,
+      kind: _copied ? AppButtonKind.ghostAccent : AppButtonKind.outline,
+      height: 34,
+      onPressed: _busy ? null : _copy,
+    );
+  }
+}
+
+/// The painted [cards] (RepaintBoundary keys) stacked into one image on the
+/// app background, at [pixelRatio] unless that would exceed [maxWidth] pixels.
+Future<ui.Image> captureCards(List<GlobalKey> cards, {required double pixelRatio, int maxWidth = 3000}) async {
+  // toImage reads the last painted layers; let pending updates paint first.
+  await WidgetsBinding.instance.endOfFrame;
+  final boundaries = <RenderRepaintBoundary>[];
+  for (final key in cards) {
+    final box = key.currentContext?.findRenderObject();
+    if (box is RenderRepaintBoundary && box.hasSize && !box.size.isEmpty) boundaries.add(box);
+  }
+  if (boundaries.isEmpty) throw StateError('Nothing to capture');
+  const padding = 16.0;
+  const gap = 14.0;
+  final widest = boundaries.map((b) => b.size.width).reduce(max);
+  final ratio = min(pixelRatio, maxWidth / (widest + 2 * padding));
+  final shots = await Future.wait(
+    [for (final b in boundaries) b.toImage(pixelRatio: ratio)],
+    cleanUp: (ui.Image shot) => shot.dispose(),
+  );
+  try {
+    final pad = (padding * ratio).round();
+    final space = (gap * ratio).round();
+    final width = shots.map((s) => s.width).reduce(max) + 2 * pad;
+    final height = shots.fold(0, (sum, s) => sum + s.height) + 2 * pad + space * (shots.length - 1);
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder)
+      ..drawRect(Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()), Paint()..color = AppColors.bg);
+    var y = pad;
+    for (final shot in shots) {
+      canvas.drawImage(shot, Offset(pad.toDouble(), y.toDouble()), Paint());
+      y += shot.height + space;
+    }
+    final picture = recorder.endRecording();
+    try {
+      return await picture.toImage(width, height);
+    } finally {
+      picture.dispose();
+    }
+  } finally {
+    for (final shot in shots) {
+      shot.dispose();
+    }
+  }
+}
 
 /// Lets the user save or share the current quality view as a PDF report or
 /// as raw CSV data, or copy a text summary.

@@ -26,6 +26,7 @@ class QualityLive {
     this.startedAt,
     this.udpSkipped = false,
     this.udpUnavailable,
+    this.settling = false,
   });
 
   final bool supported;
@@ -47,6 +48,9 @@ class QualityLive {
 
   /// UDP probes can't be sent at all (local error); HTTPS takes over.
   final String? udpUnavailable;
+
+  /// Just woke from sleep: results are held until the connection is back.
+  final bool settling;
 
   static const liveWindow = Duration(minutes: 2);
   static const chartWindow = Duration(minutes: 5);
@@ -237,6 +241,15 @@ class QualityBloc {
 
   void onNetworkChanged() => monitor.onNetworkChanged();
 
+  /// The system is going to sleep: stop counting and save what we have.
+  Future<void> onSleep() async {
+    monitor.onSleep();
+    await flush();
+  }
+
+  /// The system woke up: results wait until the connection is back.
+  void onWake() => monitor.onWake();
+
   Future<void> setEnabled(bool enabled) async {
     await AppSharedPreferences.setQualityMonitoring(enabled);
     if (enabled) {
@@ -380,6 +393,7 @@ class QualityBloc {
       ],
       udpSkipped: _proxy?.call() != null,
       udpUnavailable: monitor.udpUnavailable,
+      settling: monitor.settling,
     );
   }
 

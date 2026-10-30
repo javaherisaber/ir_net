@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:ir_net/main.dart';
+import 'package:ir_net/quality_bloc.dart';
 
 import 'package:ir_net/utils/usage_collectors.dart';
 
@@ -9,6 +10,7 @@ import 'balance_widgets.dart';
 import 'call_widgets.dart';
 import 'components.dart';
 import 'connection_widgets.dart';
+import 'export_widgets.dart';
 import 'leak_widgets.dart';
 import 'quality_widgets.dart';
 import 'speed_widgets.dart';
@@ -212,9 +214,19 @@ class SpeedSection extends StatelessWidget {
 }
 
 /// Network quality: live probes, server comparison and history.
-class QualitySection extends StatelessWidget {
+class QualitySection extends StatefulWidget {
   const QualitySection({super.key, this.compact = false});
   final bool compact;
+
+  @override
+  State<QualitySection> createState() => _QualitySectionState();
+}
+
+class _QualitySectionState extends State<QualitySection> {
+  // The cards "Copy screenshot" puts in its image.
+  final _liveCard = GlobalKey();
+  final _callsCard = GlobalKey();
+  final _historyCard = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
@@ -223,15 +235,22 @@ class QualitySection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          QualityLiveCard(compact: compact),
+          if (QualityBloc.isSupported) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [QualityScreenshotButton(cards: [_liveCard, _callsCard, _historyCard])],
+            ),
+            const SizedBox(height: 12),
+          ],
+          RepaintBoundary(key: _liveCard, child: QualityLiveCard(compact: widget.compact)),
           const SizedBox(height: 14),
-          CallQualityCard(compact: compact),
+          RepaintBoundary(key: _callsCard, child: CallQualityCard(compact: widget.compact)),
           const SizedBox(height: 18),
           const QualityFilterBar(),
           const SizedBox(height: 12),
           const QualityCompareCard(),
           const SizedBox(height: 14),
-          const QualityHistoryCard(),
+          RepaintBoundary(key: _historyCard, child: const QualityHistoryCard()),
         ],
       ),
     );

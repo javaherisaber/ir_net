@@ -789,7 +789,8 @@ class _ReportPdf {
               'what web and other TCP apps wait for, as VPN clients measure it.'),
       ('Uptime',
           'Share of probe intervals with any connectivity. An interval is down when the UDP probe is lost '
-              'and HTTPS fails too.'),
+              'and HTTPS fails too. Sleep is not monitored, and reconnecting after waking only counts when it '
+              'takes over 2 minutes.'),
       ('Quality score',
           'The ITU-T G.107 E-model R-factor from latency, jitter and loss, scaled to 0–100. '
               'Excellent ≥ 90, Good ≥ 75, Fair ≥ 60, Poor ≥ 40, Bad below.'),

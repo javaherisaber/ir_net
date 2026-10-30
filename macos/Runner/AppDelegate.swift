@@ -16,11 +16,21 @@ class AppDelegate: FlutterAppDelegate {
           name: NSWorkspace.didWakeNotification,
           object: nil
       )
+      NSWorkspace.shared.notificationCenter.addObserver(
+          self,
+          selector: #selector(willSleep),
+          name: NSWorkspace.willSleepNotification,
+          object: nil
+      )
       super.applicationDidFinishLaunching(aNotification)
   }
 
   @objc func didWake(_ notification: Notification) {
       channel?.invokeMethod("onMacOsWake", arguments: nil)
+  }
+
+  @objc func willSleep(_ notification: Notification) {
+      channel?.invokeMethod("onMacOsSleep", arguments: nil)
   }
 
   override func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

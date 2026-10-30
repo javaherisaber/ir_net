@@ -14,6 +14,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ir_net/data/app_database.dart';
+import 'package:ir_net/data/quality.dart';
 import 'package:ir_net/data/quality_store.dart';
 import 'package:ir_net/data/shared_preferences.dart';
 import 'package:ir_net/data/usage.dart';
@@ -30,6 +31,7 @@ import 'package:ir_net/ui/theme.dart';
 import 'package:ir_net/usage_bloc.dart';
 import 'package:ir_net/utils/ip_enricher.dart';
 import 'package:ir_net/utils/file_delivery.dart';
+import 'package:ir_net/utils/image_clipboard.dart';
 import 'package:ir_net/utils/ip_tools.dart';
 import 'package:ir_net/utils/quality_monitor.dart';
 import 'package:ir_net/utils/quality_report_pdf.dart';
@@ -62,6 +64,17 @@ class RecordingDelivery extends FileDelivery {
 
   @override
   Future<void> reveal(String path) async => revealed.add(path);
+}
+
+/// Keeps copied images (as PNGs) instead of touching the system clipboard.
+class RecordingClipboard extends ImageClipboard {
+  final copies = <({int width, int height, Uint8List png, String name})>[];
+
+  @override
+  Future<void> copy(ui.Image image, {required String name}) async {
+    final png = await image.toByteData(format: ui.ImageByteFormat.png);
+    copies.add((width: image.width, height: image.height, png: png!.buffer.asUint8List(), name: name));
+  }
 }
 
 class IdleCollector extends UsageCollector {
@@ -284,6 +297,101 @@ void main() {
     await settle(tester);
     expect(find.text('MEASURED'), findsOneWidget, reason: 'column header of the wide table');
     await _shot(tester, 'quality_wide');
+
+    await tearDownBlocs(tester);
+  });
+
+  testWidgets('Server comparison lists the five most recent servers', (tester) async {
+    await setUpBlocs(tester);
+    // Four more servers, measured for a minute 20–23 hours ago: older than
+    // the three seeded ones, which cover the last 24 hours back to back.
+    await tester.runAsync(() async {
+      final store = QualityStore(db);
+      final now = DateTime.now();
+      const places = [
+        ('Paris', 'France', 'FR'),
+        ('London', 'United Kingdom', 'GB'),
+        ('Stockholm', 'Sweden', 'SE'),
+        ('Warsaw', 'Poland', 'PL'),
+      ];
+      for (final (i, (city, country, code)) in places.indexed) {
+        final ip = '203.0.113.${i + 1}';
+        await store.touchServer(ServerInfo(ip: ip, city: city, country: country, countryCode: code), now);
+        final minute = QualityWindow(minuteStart(now) - (20 + i) * 3600, ip)..ticks = 30;
+        for (var j = 0; j < 30; j++) {
+          minute.udp.addReply(90.0 + j);
+        }
+        await store.saveWindows([minute]);
+      }
+      await bloc.quality.reload();
+    });
+    await pumpShell(tester, const Size(1000, 2000));
+    await tester.tap(find.text('Network quality').first);
+    await settle(tester);
+
+    expect(find.text('Istanbul, Turkey'), findsOneWidget);
+    expect(find.text('Paris, France'), findsOneWidget);
+    expect(find.text('London, United Kingdom'), findsOneWidget);
+    expect(find.text('Stockholm, Sweden'), findsNothing, reason: 'sixth most recent');
+    expect(find.text('Warsaw, Poland'), findsNothing);
+    expect(find.text('5 most recent · tap a row to chart it'), findsOneWidget);
+
+    await tester.tap(find.text('Show all 7'));
+    await tester.pump();
+    expect(find.text('Stockholm, Sweden'), findsOneWidget);
+    expect(find.text('Warsaw, Poland'), findsOneWidget);
+    expect(find.text('Tap a row to chart it'), findsOneWidget);
+
+    // A selected row stays listed when the list collapses again.
+    await tester.tap(find.text('Warsaw, Poland'));
+    await settle(tester);
+    expect(find.text('HISTORY · WARSAW, POLAND'), findsOneWidget);
+    await tester.tap(find.text('Show last 5'));
+    await tester.pump();
+    expect(find.text('Warsaw, Poland'), findsOneWidget);
+    expect(find.text('Stockholm, Sweden'), findsNothing);
+    await _shot(tester, 'quality_recent_servers');
+
+    await tearDownBlocs(tester);
+  });
+
+  testWidgets('Copy screenshot puts the score, calls and history cards in one PNG', (tester) async {
+    await setUpBlocs(tester);
+    final clipboard = RecordingClipboard();
+    ImageClipboard.instance = clipboard;
+    addTearDown(() => ImageClipboard.instance = const ImageClipboard());
+    await pumpShell(tester, const Size(1000, 2000));
+    await tester.tap(find.text('Network quality').first);
+    await settle(tester);
+
+    await tester.tap(find.text('Copy screenshot'));
+    // Rendering and encoding the image is real async work.
+    for (var i = 0; i < 60 && clipboard.copies.isEmpty; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump();
+    }
+    await tester.pump();
+    expect(find.text('Copied'), findsOneWidget);
+
+    final copy = clipboard.copies.single;
+    final cards = [
+      tester.getSize(find.byType(QualityLiveCard)),
+      tester.getSize(find.byType(CallQualityCard)),
+      tester.getSize(find.byType(QualityHistoryCard)),
+    ];
+    expect(copy.name, matches(RegExp(r'^IRNet-network-quality-\d{4}-\d\d-\d\d-\d{4}\.png$')));
+    expect(copy.png.take(4), [0x89, 0x50, 0x4E, 0x47]);
+    // The 1x test view renders at 2x: cards stacked 14 px apart inside 16 px
+    // of padding.
+    expect(copy.width, (cards[0].width * 2).ceil() + 2 * 32);
+    expect(copy.height, cards.fold<int>(0, (sum, c) => sum + (c.height * 2).ceil()) + 2 * 32 + 2 * 28);
+    final dir = Platform.environment['IRNET_SCREENSHOTS'];
+    if (dir != null) {
+      await tester.runAsync(() => File('$dir/quality_screenshot_copy.png').writeAsBytes(copy.png));
+    }
+
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.text('Copy screenshot'), findsOneWidget);
 
     await tearDownBlocs(tester);
   });
