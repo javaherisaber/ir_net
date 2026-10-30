@@ -222,7 +222,10 @@ void main() {
       await m.runTick();
       expect(m.takeDirtyWindows().map((w) => w.start).toSet(), hasLength(2));
       now = now.add(const Duration(minutes: 10));
-      await m.runTick();
+      // The gap reads as a wake: counted once the connection has held.
+      for (var i = 0; i < 3; i++) {
+        await m.runTick();
+      }
       expect(m.takeDirtyWindows(), hasLength(1));
       // Rewriting an evicted minute must not happen: only the new one is dirty.
     });
@@ -268,6 +271,95 @@ void main() {
       await m.runTick();
       await m.runTick();
       expect(m.takeDirtyWindows().single.seconds, 10);
+    });
+
+    test('failures while reconnecting after a wake are not counted', () async {
+      final m = monitor([50, null, null, null, 60, 61, 62], [null])..setServer('a');
+      await m.runTick();
+      m
+        ..onSleep()
+        ..onWake();
+      expect(m.settling, isTrue);
+      for (var i = 0; i < 5; i++) {
+        await m.runTick();
+      }
+      expect(m.takeDirtyWindows().single.ticks, 1, reason: 'held until the connection holds');
+      await m.runTick();
+      expect(m.settling, isFalse);
+      final w = m.takeDirtyWindows().single;
+      expect(w.ticks, 4, reason: 'the tick before sleep and the three after reconnecting');
+      expect(w.downTicks, 0);
+      expect(w.udp.received, 4);
+      expect(m.recentStats(const Duration(minutes: 5)).downTicks, 0);
+    });
+
+    test('a connection still failing after the wake grace is a real outage', () async {
+      final m = QualityMonitor(
+        udp: ScriptedProber([null]),
+        http: ScriptedProber([null]),
+        wakeGrace: const Duration(seconds: 10),
+        clock: () => now,
+      )..setServer('a');
+      m.onWake();
+      for (var i = 0; i < 6; i++) {
+        await m.runTick();
+        now = now.add(const Duration(seconds: 2));
+      }
+      expect(m.settling, isFalse);
+      expect(m.takeDirtyWindows().single.downTicks, 6, reason: 'held ticks are kept from the wake on');
+      await m.runTick();
+      expect(m.takeDirtyWindows().single.downTicks, 7);
+    });
+
+    test('a gap between ticks is treated as a wake', () async {
+      final m = monitor([50, null, 60, 61, 62], [null])..setServer('a');
+      await m.runTick();
+      m.takeDirtyWindows();
+      now = now.add(const Duration(minutes: 5));
+      await m.runTick();
+      await m.runTick();
+      expect(m.settling, isTrue);
+      expect(m.takeDirtyWindows(), isEmpty);
+      for (var i = 0; i < 3; i++) {
+        await m.runTick();
+      }
+      expect(m.settling, isFalse);
+      final w = m.takeDirtyWindows().single;
+      expect(w.downTicks, 0);
+      expect(w.ticks, 4, reason: 'three that settled it, then one counted directly');
+    });
+
+    test('probes in flight when the system sleeps are dropped', () async {
+      final udp = GatedProber();
+      final m = QualityMonitor(udp: udp, http: ScriptedProber([null]), clock: () => now)..setServer('a');
+      final tick = m.runTick();
+      await pumpEventQueue();
+      m.onSleep();
+      udp.gates.single.complete(null);
+      await tick;
+      await m.runTick();
+      expect(udp.gates, hasLength(1), reason: 'no probes while asleep');
+      expect(m.takeDirtyWindows(), isEmpty);
+    });
+
+    test('a missed wake notification is caught by the next tick', () async {
+      final m = monitor([50], [60])..setServer('a');
+      m.onSleep();
+      now = now.add(const Duration(minutes: 1));
+      await m.runTick();
+      expect(m.settling, isTrue);
+    });
+
+    test('a tick spanning a suspension is dropped', () async {
+      final udp = GatedProber();
+      final m = QualityMonitor(udp: udp, http: ScriptedProber([null]), clock: () => now)..setServer('a');
+      final tick = m.runTick();
+      await pumpEventQueue();
+      now = now.add(const Duration(minutes: 3));
+      udp.gates.single.complete(null);
+      await tick;
+      expect(m.settling, isTrue);
+      expect(m.takeDirtyWindows(), isEmpty);
     });
 
     test('network change resets the probers', () {

@@ -102,9 +102,14 @@ class AppBloc with AppSystemTray {
 
   void _initializeNativeChannel() {
     platform.setMethodCallHandler((call) async {
-      if (call.method == 'onMacOsWake' 
+      if (call.method == 'onMacOsSleep'
+          || call.method == 'onWindowsSleep'
+          || call.method == 'onLinuxSleep') {
+        await quality.onSleep();
+      } else if (call.method == 'onMacOsWake' 
           || call.method == 'onWindowsWake' 
           || call.method == 'onLinuxWake') {
+        quality.onWake();
         await Future.delayed(const Duration(seconds: 3));
         _handleRefresh();
       }

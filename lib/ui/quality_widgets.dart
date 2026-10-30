@@ -248,6 +248,7 @@ class QualityLiveCard extends StatelessWidget {
     final httpOnly = live.udpSkipped || live.udpUnavailable != null;
     final parts = <String>[
       'Last ${QualityLive.liveWindow.inMinutes} min',
+      if (live.settling) 'Woke from sleep: waiting for the connection before counting',
       if (live.udpSkipped)
         'HTTPS every ${secs * 2}s (system proxy: UDP not measured)'
       else if (live.udpUnavailable != null)

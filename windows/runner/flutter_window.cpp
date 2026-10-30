@@ -61,11 +61,11 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
       flutter_controller_->engine()->ReloadSystemFonts();
       break;
     case WM_POWERBROADCAST:
-      if (wparam == PBT_APMRESUMEAUTOMATIC) {
+      if (wparam == PBT_APMRESUMEAUTOMATIC || wparam == PBT_APMSUSPEND) {
         flutter::MethodChannel<> channel(
             flutter_controller_->engine()->messenger(), "ir_net/system_events",
             &flutter::StandardMethodCodec::GetInstance());
-        channel.InvokeMethod("onWindowsWake", nullptr);
+        channel.InvokeMethod(wparam == PBT_APMSUSPEND ? "onWindowsSleep" : "onWindowsWake", nullptr);
       }
       break;
     case WM_CLOSE:

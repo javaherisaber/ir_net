@@ -26,8 +26,9 @@ static void system_awake_callback(GDBusConnection* connection,
   MyApplication* self = MY_APPLICATION(user_data);
   gboolean sleeping;
   g_variant_get(parameters, "(b)", &sleeping);
-  if (!sleeping && self->method_channel) {
-    fl_method_channel_invoke_method(self->method_channel, "onLinuxWake", nullptr, nullptr, nullptr, nullptr);
+  if (self->method_channel) {
+    fl_method_channel_invoke_method(self->method_channel, sleeping ? "onLinuxSleep" : "onLinuxWake", nullptr,
+                                    nullptr, nullptr, nullptr);
   }
 }
 
