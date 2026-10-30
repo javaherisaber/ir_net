@@ -518,6 +518,21 @@ class QualityCompareCard extends StatefulWidget {
 
 class _QualityCompareCardState extends State<QualityCompareCard> {
   _SortColumn _sort = _SortColumn.score;
+  bool _all = false;
+
+  /// Rows listed until "Show all", so the history below stays in reach.
+  /// History and exports still cover every server.
+  static const _recent = 5;
+
+  /// The most recently measured rows, plus the selected one so a selection
+  /// never hides off the list.
+  List<ServerQuality> _recentRows(QualityDashboard data) {
+    final byRecency = [...data.rows]..sort((a, b) => b.lastTs.compareTo(a.lastTs));
+    final rows = byRecency.take(_recent).toList();
+    final selected = data.selectedRow;
+    if (selected != null && !rows.contains(selected)) rows.add(selected);
+    return rows;
+  }
 
   double _sortValue(ServerQuality r) {
     final s = r.stats;
@@ -541,7 +556,8 @@ class _QualityCompareCardState extends State<QualityCompareCard> {
       stream: bloc.quality.dashboard,
       builder: (context, snapshot) {
         final data = snapshot.data;
-        final rows = [...?data?.rows]..sort((a, b) => _sortValue(b).compareTo(_sortValue(a)));
+        final rows = [if (data != null) ...(_all ? data.rows : _recentRows(data))]
+          ..sort((a, b) => _sortValue(b).compareTo(_sortValue(a)));
         return AppCard(
           padding: EdgeInsets.zero,
           clip: true,
@@ -557,9 +573,16 @@ class _QualityCompareCardState extends State<QualityCompareCard> {
                   const SizedBox(height: 80, child: Center(child: _Spinner()))
                 else if (rows.isEmpty)
                   _empty()
-                else
+                else ...[
                   for (final r in rows)
                     wide ? _wideRow(data, r) : _compactRow(data, r),
+                  if (data.rows.length > _recent)
+                    TextButton(
+                      onPressed: () => setState(() => _all = !_all),
+                      child: Text(_all ? 'Show last $_recent' : 'Show all ${data.rows.length}',
+                          style: AppText.ui(12, FontWeight.w600, AppColors.accent)),
+                    ),
+                ],
               ],
             );
           }),
@@ -570,6 +593,7 @@ class _QualityCompareCardState extends State<QualityCompareCard> {
 
   Widget _title(QualityDashboard? data) {
     final grouping = data?.filter.grouping ?? QualityGrouping.server;
+    final limited = !_all && (data?.rows.length ?? 0) > _recent;
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
       decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.line))),
@@ -581,7 +605,7 @@ class _QualityCompareCardState extends State<QualityCompareCard> {
               style: AppText.ui(12, FontWeight.w600, AppColors.text2, letterSpacing: 0.6)),
           const SizedBox(width: 12),
           Expanded(
-            child: Text('Tap a row to chart it',
+            child: Text(limited ? '$_recent most recent · tap a row to chart it' : 'Tap a row to chart it',
                 textAlign: TextAlign.right,
                 overflow: TextOverflow.ellipsis,
                 style: AppText.ui(11, FontWeight.w400, AppColors.text3)),
