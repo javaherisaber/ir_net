@@ -17,8 +17,18 @@ import Flutter
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
-  /// Opens the share sheet for an exported quality report.
+  /// Opens the share sheet for an exported quality report, or puts a
+  /// screenshot on the pasteboard.
   private func handleShare(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    if call.method == "copyImage" {
+      guard let args = call.arguments as? [String: Any], let png = args["png"] as? FlutterStandardTypedData else {
+        result(FlutterError(code: "BAD_ARGS", message: "png is required", details: nil))
+        return
+      }
+      UIPasteboard.general.setData(png.data, forPasteboardType: "public.png")
+      result(nil)
+      return
+    }
     guard call.method == "shareFile" else {
       result(FlutterMethodNotImplemented)
       return

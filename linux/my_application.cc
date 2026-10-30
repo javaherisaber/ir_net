@@ -11,6 +11,7 @@ struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
   FlMethodChannel* method_channel;
+  FlMethodChannel* share_channel;
   GDBusConnection* system_bus;
 };
 
@@ -30,6 +31,41 @@ static void system_awake_callback(GDBusConnection* connection,
     fl_method_channel_invoke_method(self->method_channel, sleeping ? "onLinuxSleep" : "onLinuxWake", nullptr,
                                     nullptr, nullptr, nullptr);
   }
+}
+
+// Puts a PNG screenshot on the clipboard ("copyImage" on ir_net/share).
+static FlMethodResponse* copy_image(FlValue* args) {
+  FlValue* png = fl_value_get_type(args) == FL_VALUE_TYPE_MAP ? fl_value_lookup_string(args, "png") : nullptr;
+  if (png == nullptr || fl_value_get_type(png) != FL_VALUE_TYPE_UINT8_LIST) {
+    return FL_METHOD_RESPONSE(fl_method_error_response_new("BAD_ARGS", "png is required", nullptr));
+  }
+  GdkPixbufLoader* loader = gdk_pixbuf_loader_new_with_type("png", nullptr);
+  if (loader == nullptr) {
+    return FL_METHOD_RESPONSE(fl_method_error_response_new("COPY_FAILED", "PNG images are not supported", nullptr));
+  }
+  gboolean written = gdk_pixbuf_loader_write(loader, fl_value_get_uint8_list(png), fl_value_get_length(png), nullptr);
+  gboolean closed = gdk_pixbuf_loader_close(loader, nullptr);
+  GdkPixbuf* pixbuf = (written && closed) ? gdk_pixbuf_loader_get_pixbuf(loader) : nullptr;
+  FlMethodResponse* response;
+  if (pixbuf != nullptr) {
+    // The clipboard keeps its own reference to the pixbuf.
+    gtk_clipboard_set_image(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), pixbuf);
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+  } else {
+    response = FL_METHOD_RESPONSE(fl_method_error_response_new("COPY_FAILED", "Could not read the image", nullptr));
+  }
+  g_object_unref(loader);
+  return response;
+}
+
+static void share_method_call_cb(FlMethodChannel* channel, FlMethodCall* method_call, gpointer user_data) {
+  g_autoptr(FlMethodResponse) response = nullptr;
+  if (g_strcmp0(fl_method_call_get_name(method_call), "copyImage") == 0) {
+    response = copy_image(fl_method_call_get_args(method_call));
+  } else {
+    response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
+  }
+  fl_method_call_respond(method_call, response, nullptr);
 }
 
 // Implements GApplication::activate.
@@ -81,6 +117,8 @@ static void my_application_activate(GApplication* application) {
   FlEngine* engine = fl_view_get_engine(view);
   FlBinaryMessenger* messenger = fl_engine_get_binary_messenger(engine);
   self->method_channel = fl_method_channel_new(messenger, "ir_net/system_events", FL_METHOD_CODEC(codec));
+  self->share_channel = fl_method_channel_new(messenger, "ir_net/share", FL_METHOD_CODEC(codec));
+  fl_method_channel_set_method_call_handler(self->share_channel, share_method_call_cb, self, nullptr);
 
   self->system_bus = g_bus_get_sync(G_BUS_TYPE_SYSTEM, nullptr, nullptr);
   if (self->system_bus) {
@@ -123,6 +161,7 @@ static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
   g_clear_object(&self->method_channel);
+  g_clear_object(&self->share_channel);
   g_clear_object(&self->system_bus);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }

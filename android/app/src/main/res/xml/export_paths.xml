@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Exported reports are written to cache/exports/ and shared from there. -->
+<!-- Exported reports are written to cache/exports/ and shared from there;
+     screenshots copied to the clipboard live in cache/clipboard/. -->
 <paths>
     <cache-path name="exports" path="exports/" />
+    <cache-path name="clipboard" path="clipboard/" />
 </paths>

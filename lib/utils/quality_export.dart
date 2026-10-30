@@ -69,10 +69,11 @@ String formatMbpsValue(double? mbps) {
 }
 
 /// "IRNet-network-quality-2026-10-26-1405.pdf".
-String reportFileName(QualityReport r, String extension) {
-  final t = r.generatedAt;
-  return 'IRNet-network-quality-${t.year}-${_two(t.month)}-${_two(t.day)}-${_two(t.hour)}${_two(t.minute)}.$extension';
-}
+String reportFileName(QualityReport r, String extension) => qualityFileName(r.generatedAt, extension);
+
+/// Name of a quality export or screenshot made at [t].
+String qualityFileName(DateTime t, String extension) =>
+    'IRNet-network-quality-${t.year}-${_two(t.month)}-${_two(t.day)}-${_two(t.hour)}${_two(t.minute)}.$extension';
 
 String _times(int n) => n == 1 ? 'once' : (n == 2 ? 'twice' : '$n times');
 

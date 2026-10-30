@@ -31,6 +31,7 @@ import 'package:ir_net/ui/theme.dart';
 import 'package:ir_net/usage_bloc.dart';
 import 'package:ir_net/utils/ip_enricher.dart';
 import 'package:ir_net/utils/file_delivery.dart';
+import 'package:ir_net/utils/image_clipboard.dart';
 import 'package:ir_net/utils/ip_tools.dart';
 import 'package:ir_net/utils/quality_monitor.dart';
 import 'package:ir_net/utils/quality_report_pdf.dart';
@@ -63,6 +64,17 @@ class RecordingDelivery extends FileDelivery {
 
   @override
   Future<void> reveal(String path) async => revealed.add(path);
+}
+
+/// Keeps copied images (as PNGs) instead of touching the system clipboard.
+class RecordingClipboard extends ImageClipboard {
+  final copies = <({int width, int height, Uint8List png, String name})>[];
+
+  @override
+  Future<void> copy(ui.Image image, {required String name}) async {
+    final png = await image.toByteData(format: ui.ImageByteFormat.png);
+    copies.add((width: image.width, height: image.height, png: png!.buffer.asUint8List(), name: name));
+  }
 }
 
 class IdleCollector extends UsageCollector {
@@ -339,6 +351,47 @@ void main() {
     expect(find.text('Warsaw, Poland'), findsOneWidget);
     expect(find.text('Stockholm, Sweden'), findsNothing);
     await _shot(tester, 'quality_recent_servers');
+
+    await tearDownBlocs(tester);
+  });
+
+  testWidgets('Copy screenshot puts the score, calls and history cards in one PNG', (tester) async {
+    await setUpBlocs(tester);
+    final clipboard = RecordingClipboard();
+    ImageClipboard.instance = clipboard;
+    addTearDown(() => ImageClipboard.instance = const ImageClipboard());
+    await pumpShell(tester, const Size(1000, 2000));
+    await tester.tap(find.text('Network quality').first);
+    await settle(tester);
+
+    await tester.tap(find.text('Copy screenshot'));
+    // Rendering and encoding the image is real async work.
+    for (var i = 0; i < 60 && clipboard.copies.isEmpty; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump();
+    }
+    await tester.pump();
+    expect(find.text('Copied'), findsOneWidget);
+
+    final copy = clipboard.copies.single;
+    final cards = [
+      tester.getSize(find.byType(QualityLiveCard)),
+      tester.getSize(find.byType(CallQualityCard)),
+      tester.getSize(find.byType(QualityHistoryCard)),
+    ];
+    expect(copy.name, matches(RegExp(r'^IRNet-network-quality-\d{4}-\d\d-\d\d-\d{4}\.png$')));
+    expect(copy.png.take(4), [0x89, 0x50, 0x4E, 0x47]);
+    // The 1x test view renders at 2x: cards stacked 14 px apart inside 16 px
+    // of padding.
+    expect(copy.width, (cards[0].width * 2).ceil() + 2 * 32);
+    expect(copy.height, cards.fold<int>(0, (sum, c) => sum + (c.height * 2).ceil()) + 2 * 32 + 2 * 28);
+    final dir = Platform.environment['IRNET_SCREENSHOTS'];
+    if (dir != null) {
+      await tester.runAsync(() => File('$dir/quality_screenshot_copy.png').writeAsBytes(copy.png));
+    }
+
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.text('Copy screenshot'), findsOneWidget);
 
     await tearDownBlocs(tester);
   });
