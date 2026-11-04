@@ -9,7 +9,7 @@ Here’s a complete **step-by-step guide from scratch** tailored for a Flutter L
 Make sure you have:
 
 * Flutter installed and working with desktop support (`flutter doctor`)
-* `dpkg-deb`, `cmake`, `make`, `gcc`, and `glib` installed on Ubuntu
+* `dpkg-deb`, `dpkg-shlibdeps` (package `dpkg-dev`), `cmake`, `make`, `gcc`, and `glib` installed on Ubuntu
 * Your Flutter app is already working on Linux (`flutter run -d linux`)
 
 ---
@@ -75,6 +75,8 @@ Depends: libgtk-3-0, libglib2.0-0
 Maintainer: Your Name <you@example.com>
 Description: IR Net – A Flutter desktop app for Linux.
 ```
+
+`build_linux.sh` fills `Depends` with `dpkg-shlibdeps` instead of a fixed list, so it covers every library the binaries link (the tray's appindicator, Sentry's libcurl, the minimum glibc) under the package names of the distro you build on. A build on Ubuntu 24.04 needs glibc 2.38 and won't run on 22.04; build on the oldest release you want to support.
 
 ---
 

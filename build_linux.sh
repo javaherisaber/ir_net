@@ -88,13 +88,43 @@ print_info "Build output copied"
 
 # Step 4: Create control file
 print_info "STEP 4: Creating control file..."
+
+# Libraries the binaries link (GTK, appindicator for the tray, libcurl for Sentry, and the
+# minimum glibc) are read from the binaries by dpkg-shlibdeps, so package names and versions
+# match the distro the app was built on. libdartjni.so is skipped: it links libjvm for the
+# Android-only jni plugin and is never loaded on Linux.
+if ! command -v dpkg-shlibdeps &> /dev/null; then
+    print_error "dpkg-shlibdeps not found. Install it with: sudo apt-get install dpkg-dev"
+    exit 1
+fi
+APP_DIR="$PKG_DIR/usr/bin/ir_net"
+SHLIB_BINARIES=("$APP_DIR/ir_net")
+for binary in "$APP_DIR"/lib/*.so "$APP_DIR/lib/crashpad_handler"; do
+    if [[ -f "$binary" && "$(basename "$binary")" != "libdartjni.so" ]]; then
+        SHLIB_BINARIES+=("$binary")
+    fi
+done
+SHLIBDEPS_DIR=$(mktemp -d)
+mkdir -p "$SHLIBDEPS_DIR/debian"
+printf 'Source: ir-net\n\nPackage: ir-net\nArchitecture: any\n' > "$SHLIBDEPS_DIR/debian/control"
+SHLIB_DEPENDS=$(cd "$SHLIBDEPS_DIR" && dpkg-shlibdeps -O -l"$APP_DIR/lib" "${SHLIB_BINARIES[@]}" 2> "$SHLIBDEPS_DIR/errors.log" \
+    | sed -n 's/^shlibs:Depends=//p')
+if [[ -z "$SHLIB_DEPENDS" ]]; then
+    print_error "dpkg-shlibdeps could not work out the shared library dependencies:"
+    grep -v 'warning:' "$SHLIBDEPS_DIR/errors.log" >&2 || true
+    rm -rf "$SHLIBDEPS_DIR"
+    exit 1
+fi
+rm -rf "$SHLIBDEPS_DIR"
+
+# Loaded or run at runtime, so not visible to dpkg-shlibdeps: SQLite (FFI), ss and ps (data usage)
 cat > "$PKG_DIR/DEBIAN/control" << EOF
 Package: ir-net
 Version: $VERSION
 Section: utils
 Priority: optional
 Architecture: amd64
-Depends: libgtk-3-0, libglib2.0-0, libsqlite3-0, iproute2
+Depends: $SHLIB_DEPENDS, libsqlite3-0, iproute2, procps
 Maintainer: $MAINTAINER_NAME <$MAINTAINER_EMAIL>
 Description: IRNet – A Flutter desktop app for Linux.
  IRNet is a tool to show network connection details.
