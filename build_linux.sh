@@ -79,6 +79,10 @@ print_info "Package structure created"
 print_info "STEP 3: Copying build output..."
 cp -r "$BUILD_DIR"/* "$PKG_DIR/usr/bin/ir_net/"
 chmod +x "$PKG_DIR/usr/bin/ir_net/ir_net"
+# Sentry spawns crashpad_handler as a process, but the bundle install drops its execute bit
+if [[ -f "$PKG_DIR/usr/bin/ir_net/lib/crashpad_handler" ]]; then
+    chmod +x "$PKG_DIR/usr/bin/ir_net/lib/crashpad_handler"
+fi
 
 print_info "Build output copied"
 
