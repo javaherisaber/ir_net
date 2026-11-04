@@ -20,6 +20,7 @@ import 'package:ir_net/utils/file_delivery.dart';
 import 'package:ir_net/utils/quality_export.dart';
 import 'package:ir_net/utils/quality_monitor.dart';
 import 'package:ir_net/utils/quality_report_pdf.dart';
+import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -250,10 +251,10 @@ void main() {
     test('saved files never overwrite an earlier export', () async {
       final dir = await Directory.systemTemp.createTemp('irnet_export');
       addTearDown(() => dir.delete(recursive: true));
-      expect(FileDelivery.uniqueFile(dir, 'report.pdf').path, '${dir.path}/report.pdf');
-      File('${dir.path}/report.pdf').writeAsStringSync('1');
-      File('${dir.path}/report (2).pdf').writeAsStringSync('2');
-      expect(FileDelivery.uniqueFile(dir, 'report.pdf').path, '${dir.path}/report (3).pdf');
+      expect(FileDelivery.uniqueFile(dir, 'report.pdf').path, p.join(dir.path, 'report.pdf'));
+      File(p.join(dir.path, 'report.pdf')).writeAsStringSync('1');
+      File(p.join(dir.path, 'report (2).pdf')).writeAsStringSync('2');
+      expect(FileDelivery.uniqueFile(dir, 'report.pdf').path, p.join(dir.path, 'report (3).pdf'));
     });
   });
 }
