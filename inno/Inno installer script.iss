@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "IRNet"
-#define MyAppVersion "1.5.0"
+#define MyAppVersion "1.6.0"
 #define MyAppPublisher "BuildToApp, Inc."
 #define MyAppURL "https://www.buildtoapp.com/"
 #define MyAppExeName "ir_net.exe"
@@ -31,7 +31,7 @@ DisableProgramGroupPage=yes
 LicenseFile=installer license.txt
 ; Uncomment the following line to run in non administrative install mode (install for current user only.)
 ;PrivilegesRequired=lowest
-OutputBaseFilename=IRNet_windows_setup_1.5.0
+OutputBaseFilename=IRNet_windows_setup_1.6.0
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern

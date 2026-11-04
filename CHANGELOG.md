@@ -1,6 +1,16 @@
-# Unreleased
+# 1.6.0
+- [all] add a network quality monitor: ping, jitter, packet loss, real delay and uptime with a 0–100 score, kept per exit IP to compare VPN servers and locations
+- [all] estimate voice and video call quality and add an on-demand call test
+- [all] export network quality as a PDF report, CSV files in a ZIP or a text summary
+- [all] copy a screenshot of the network quality cards to the clipboard
+- [all] list the five most recent servers in the quality comparison
+- [all] leave system sleep and the reconnect after waking out of network quality
+- [macOS][linux][windows][android] show internet usage per app, plus per domain and destination country on macOS and Linux
 - [windows][linux] optionally show the flag of the current IP country as the system tray icon
 - [all] show the current country flag in the connection card and the header chip
+- [all] show app version at the overview title
+- [all] fix Kerio requests being sent before credentials are saved
+- [iOS] fix the build with CocoaPods and raise the minimum to iOS 13
 
 # 1.5.0
 - [all] redesign ui with a modern dark theme
