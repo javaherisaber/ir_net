@@ -55,3 +55,6 @@ sentry.properties
 sentry-wizard
 sentry.properties
 /outputs
+
+# Stray file from a cmd-style `>nul` redirect run in a POSIX shell
+nul
