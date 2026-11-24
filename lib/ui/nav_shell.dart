@@ -18,9 +18,13 @@ import 'vpn_widgets.dart';
 class AppShell extends StatelessWidget {
   const AppShell({super.key});
 
+  /// Renders the phone layout on any host (tests).
+  @visibleForTesting
+  static bool? mobileOverride;
+
   @override
   Widget build(BuildContext context) {
-    return PlatformUtils.isMobile ? const _MobileShell() : const _DesktopShell();
+    return (mobileOverride ?? PlatformUtils.isMobile) ? const _MobileShell() : const _DesktopShell();
   }
 }
 
@@ -272,6 +276,28 @@ class _MobileShell extends StatefulWidget {
 class _MobileShellState extends State<_MobileShell> {
   int _index = 0;
 
+  /// Tabs are pages: swipe left/right to move between them.
+  final _pages = PageController();
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    super.dispose();
+  }
+
+  /// Shows tab [i]: slides to a neighbour, jumps further (sliding past every
+  /// tab in between would flash them all).
+  void _go(int i) {
+    if (i < 0 || i >= _mobileTabs.length || !_pages.hasClients) return;
+    setState(() => _index = i);
+    final from = _pages.page?.round() ?? _index;
+    if ((i - from).abs() == 1) {
+      _pages.animateToPage(i, duration: const Duration(milliseconds: 260), curve: Curves.easeOutCubic);
+    } else {
+      _pages.jumpToPage(i);
+    }
+  }
+
   void _openConnection() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const _MobileConnectionScreen()),
@@ -280,24 +306,34 @@ class _MobileShellState extends State<_MobileShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: IndexedStack(
-          index: _index,
-          children: [
-            _homeTab(),
-            _tab('VPN', const VpnSection(compact: true)),
-            _tab('Leak detection', const LeakSection(compact: true),
-                trailing: const _LeakOkPill()),
-            _tab('Network quality', const QualitySection(compact: true)),
-            if (usageUnsupportedReason() == null) _tab('Data usage', const UsageSection(compact: true)),
-            _tab('Speed test', const SpeedSection(compact: true)),
-            _tab('Kerio balance', const BalanceSection(compact: true)),
-          ],
+    // Back from another tab returns to Home instead of leaving the app.
+    return PopScope(
+      canPop: _index == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _go(0);
+      },
+      child: Scaffold(
+        body: SafeArea(
+          bottom: false,
+          child: PageView(
+            controller: _pages,
+            onPageChanged: (i) => setState(() => _index = i),
+            children: [
+              for (final page in [
+                _homeTab(),
+                _tab('VPN', const VpnSection(compact: true)),
+                _tab('Leak detection', const LeakSection(compact: true), trailing: const _LeakOkPill()),
+                _tab('Network quality', const QualitySection(compact: true)),
+                if (usageUnsupportedReason() == null) _tab('Data usage', const UsageSection(compact: true)),
+                _tab('Speed test', const SpeedSection(compact: true)),
+                _tab('Kerio balance', const BalanceSection(compact: true)),
+              ])
+                _KeepAlive(child: page),
+            ],
+          ),
         ),
+        bottomNavigationBar: _bottomNav(),
       ),
-      bottomNavigationBar: _bottomNav(),
     );
   }
 
@@ -336,12 +372,12 @@ class _MobileShellState extends State<_MobileShell> {
             child: OverviewSection(
               compact: true,
               onOpenConnection: _openConnection,
-              onOpenVpn: () => setState(() => _index = _mobileIndex('VPN')),
-              onOpenLeaks: () => setState(() => _index = _mobileIndex('Leaks')),
-              onOpenQuality: () => setState(() => _index = _mobileIndex('Quality')),
-              onOpenUsage: () => setState(() => _index = _mobileIndex('Usage')),
-              onOpenSpeed: () => setState(() => _index = _mobileIndex('Speed')),
-              onOpenBalance: () => setState(() => _index = _mobileIndex('Kerio')),
+              onOpenVpn: () => _go(_mobileIndex('VPN')),
+              onOpenLeaks: () => _go(_mobileIndex('Leaks')),
+              onOpenQuality: () => _go(_mobileIndex('Quality')),
+              onOpenUsage: () => _go(_mobileIndex('Usage')),
+              onOpenSpeed: () => _go(_mobileIndex('Speed')),
+              onOpenBalance: () => _go(_mobileIndex('Kerio')),
             ),
           ),
         ),
@@ -361,7 +397,7 @@ class _MobileShellState extends State<_MobileShell> {
               // Overview cards as well as the bottom nav).
               IconActionButton(
                 icon: Icons.arrow_back,
-                onPressed: () => setState(() => _index = 0),
+                onPressed: () => _go(0),
               ),
               const SizedBox(width: 12),
               Text(title, style: AppText.ui(19, FontWeight.w700, AppColors.text)),
@@ -407,7 +443,7 @@ class _MobileShellState extends State<_MobileShell> {
     return Expanded(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => setState(() => _index = i),
+        onTap: () => _go(i),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -418,6 +454,27 @@ class _MobileShellState extends State<_MobileShell> {
         ),
       ),
     );
+  }
+}
+
+/// Keeps a tab's state (scroll position, sub-tabs, text being typed) when it
+/// scrolls out of the page view, as the stack of tabs did before.
+class _KeepAlive extends StatefulWidget {
+  const _KeepAlive({required this.child});
+  final Widget child;
+
+  @override
+  State<_KeepAlive> createState() => _KeepAliveState();
+}
+
+class _KeepAliveState extends State<_KeepAlive> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }
 

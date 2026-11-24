@@ -538,6 +538,51 @@ void main() {
     await tearDownBlocs(tester);
   });
 
+  testWidgets('Phone: swipe between tabs, and Back returns to Home instead of leaving', (tester) async {
+    await setUpBlocs(tester);
+    AppShell.mobileOverride = true;
+    addTearDown(() => AppShell.mobileOverride = null);
+    await pumpShell(tester, const Size(390, 844));
+    await settle(tester);
+    double page() => tester.widget<PageView>(find.byType(PageView)).controller!.page!;
+    // Frame by frame, so page animations run to the end.
+    Future<void> frames() async {
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 25));
+      }
+    }
+
+    expect(page(), 0);
+
+    // Swipe left twice: VPN, then Leaks (on a card, away from any chart).
+    for (final expected in [1.0, 2.0]) {
+      await tester.fling(find.byType(PageView), const Offset(-300, 0), 1500);
+      await frames();
+      expect(page(), expected);
+    }
+    expect(find.text('Leak detection'), findsOneWidget);
+
+    // Swipe right goes back one tab.
+    await tester.fling(find.byType(PageView), const Offset(300, 0), 1500);
+    await frames();
+    expect(page(), 1);
+
+    // The bottom nav jumps; Back from any tab returns to Home.
+    await tester.tap(find.text('Kerio'));
+    await frames();
+    expect(find.text('Kerio balance'), findsOneWidget);
+    expect(await tester.binding.handlePopRoute(), isTrue, reason: 'handled by the app, not passed on to Android');
+    await frames();
+    expect(page(), 0);
+
+    // On Home, Back is left to Android (it closes the screen as before).
+    final popScope = tester.widget(find.byWidgetPredicate((w) => w is PopScope).first) as PopScope;
+    expect(popScope.canPop, isTrue);
+
+    await tester.pumpWidget(const SizedBox());
+    await tearDownBlocs(tester);
+  });
+
   testWidgets('Overview shows the new summary cards; narrow layouts fit', (tester) async {
     await setUpBlocs(tester);
     await pumpShell(tester, const Size(1180, 1100));
