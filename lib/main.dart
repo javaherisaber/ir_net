@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:ir_net/data/leak_item.dart';
@@ -6,6 +7,7 @@ import 'package:ir_net/data/shared_preferences.dart';
 import 'package:ir_net/utils/platform.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:screen_retriever/screen_retriever.dart';
 import 'package:win_toast/win_toast.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:windows_single_instance/windows_single_instance.dart';
@@ -66,14 +68,25 @@ class LinuxWindowListener extends WindowListener {
   void onWindowClose() => bloc.onExitClick();
 }
 
+/// Tall enough for every Overview tile without scrolling (about 815 pt of
+/// content plus the title bar), but no bigger than the screen's free area.
+Future<Size> _initialWindowSize() async {
+  const preferred = Size(1000, 880);
+  try {
+    final display = await screenRetriever.getPrimaryDisplay();
+    final free = display.visibleSize ?? display.size;
+    return Size(min(preferred.width, free.width - 40), min(preferred.height, free.height - 40));
+  } catch (_) {
+    return preferred;
+  }
+}
+
 Future<void> initWindowManager() async {
   if (!PlatformUtils.isDesktop) {
     return;
   }
   await windowManager.ensureInitialized();
-  WindowOptions windowOptions = const WindowOptions(
-    size: Size(1000, 780),
-  );
+  WindowOptions windowOptions = WindowOptions(size: await _initialWindowSize(), center: true);
   windowManager.waitUntilReadyToShow(
     windowOptions,
     () async {
