@@ -307,6 +307,45 @@ class V2rayBloc {
     await connect(c.profileId);
   }
 
+  // ───────────────────────────── stop on sleep ─────────────────────────────
+
+  /// The connection "Stop on sleep" took down, to bring back on wake.
+  String? _sleepResumeId;
+
+  @visibleForTesting
+  static List<Duration> wakeRetryDelays = const [Duration(seconds: 5), Duration(seconds: 15)];
+
+  /// The computer is going to sleep ("Stop on sleep" on): disconnect, and
+  /// remember to reconnect on wake. Not a drop, so no notification.
+  Future<void> stopForSleep() async {
+    final c = value.connection;
+    if (!c.isConnected && c.phase != ConnectionPhase.connecting) return;
+    _sleepResumeId = c.profileId;
+    await disconnect();
+  }
+
+  /// Woke up: reconnect what [stopForSleep] stopped, once the network is
+  /// back, unless the user connected or disconnected meanwhile.
+  Future<void> resumeAfterSleep() async {
+    final id = _sleepResumeId;
+    _sleepResumeId = null;
+    if (id == null) return;
+    // With the kill switch's network cut, connecting turns it back on itself.
+    if (!value.networkCut) await _waitForNetwork();
+    for (var attempt = 0;; attempt++) {
+      final c = value.connection;
+      if (c.isConnected || c.isBusy) return;
+      await connect(id);
+      if (value.connection.isConnected) return;
+      if (attempt >= wakeRetryDelays.length) break;
+      await Future<void>.delayed(wakeRetryDelays[attempt]);
+      // The user dealt with it (disconnected, picked another config).
+      if (value.connection.phase != ConnectionPhase.failed) return;
+    }
+    _notify('VPN not reconnected', 'Couldn\'t reconnect after sleep: ${value.connection.error ?? 'unknown error'}',
+        id: 'vpn-state');
+  }
+
   /// After sleep or a network change: check the connection soon, and
   /// reconnect on the first failure.
   void onNetworkChanged() {

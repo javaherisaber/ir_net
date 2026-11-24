@@ -125,14 +125,11 @@ class AppBloc with AppSystemTray {
       if (call.method == 'onMacOsSleep'
           || call.method == 'onWindowsSleep'
           || call.method == 'onLinuxSleep') {
-        await quality.onSleep();
+        await _onSleep();
       } else if (call.method == 'onMacOsWake' 
           || call.method == 'onWindowsWake' 
           || call.method == 'onLinuxWake') {
-        quality.onWake();
-        v2ray.onNetworkChanged();
-        await Future.delayed(const Duration(seconds: 3));
-        _handleRefresh();
+        await _onWake();
       } else if (call.method == 'onIpChanged') {
         // Android: IpMonitor's lookups, also the ones it makes by itself when
         // the network or VPN changes.
@@ -153,6 +150,27 @@ class AppBloc with AppSystemTray {
         await v2ray.connect();
       }
     });
+  }
+
+  /// "Stop on sleep" took effect: IRNet's checks wait for the wake.
+  bool _asleep = false;
+
+  Future<void> _onSleep() async {
+    await quality.onSleep();
+    if (!await AppSharedPreferences.stopOnSleep) return;
+    _asleep = true;
+    // The OS may suspend IRNet before this finishes; it then completes on wake.
+    await v2ray.stopForSleep();
+  }
+
+  Future<void> _onWake() async {
+    final paused = _asleep;
+    _asleep = false;
+    quality.onWake();
+    v2ray.onNetworkChanged();
+    if (paused) unawaited(v2ray.resumeAfterSleep());
+    await Future.delayed(const Duration(seconds: 3));
+    _handleRefresh();
   }
 
   void _initializeLeakChecklist() async {
@@ -250,6 +268,7 @@ class AppBloc with AppSystemTray {
 
   void _subscribeConnectivityChange() {
     Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> result) async {
+      if (_asleep) return; // network blips while asleep; the wake refreshes everything
       quality.onNetworkChanged();
       v2ray.onNetworkChanged();
       if (result.contains(ConnectivityResult.none)) {
@@ -269,16 +288,18 @@ class AppBloc with AppSystemTray {
 
   void _runIpCheckInfinitely() async {
     while (true) {
-      await _checkProxySettings();
-      _verifyLeakedSites();
-      _checkIpLocation(force: false);
+      if (!_asleep) {
+        await _checkProxySettings();
+        _verifyLeakedSites();
+        _checkIpLocation(force: false);
+      }
       await Future.delayed(const Duration(seconds: 20));
     }
   }
 
   void _runKerioCheckInfinitely() async {
     while (true) {
-      _checkKerioBalance();
+      if (!_asleep) _checkKerioBalance();
       await Future.delayed(const Duration(seconds: 20));
     }
   }

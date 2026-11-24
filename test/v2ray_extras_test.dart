@@ -230,10 +230,12 @@ PersistentKeepalive = 25
     late http.Client Function() httpClient;
     final reconnectDelays = V2rayBloc.reconnectDelays;
     final launchDelay = V2rayBloc.launchConnectDelay;
+    final wakeDelays = V2rayBloc.wakeRetryDelays;
     var expire = 0;
 
     V2rayBloc newBloc(FakeEngine e) => V2rayBloc(
           engine: e,
+          waitForNetwork: () async {},
           httpClient: () => httpClient(),
           subscriptionClient: SubscriptionClient(
             httpClient: () => MockClient((req) async => http.Response(
@@ -265,6 +267,7 @@ PersistentKeepalive = 25
       AppNotifier.override = null;
       V2rayBloc.reconnectDelays = reconnectDelays;
       V2rayBloc.launchConnectDelay = launchDelay;
+      V2rayBloc.wakeRetryDelays = wakeDelays;
       await bloc.dispose();
       await tmp.delete(recursive: true);
     });
@@ -403,6 +406,64 @@ PersistentKeepalive = 25
       expect(removed, ['geoip.dat', 'geoip-only-cn-private.dat']);
       final left = dir.listSync().map((f) => f.uri.pathSegments.last).toList()..sort();
       expect(left, ['geosite.dat', 'iran-geoip.dat'], reason: 'imported files stay');
+    });
+
+    group('stop on sleep', () {
+      setUp(() async {
+        await bloc.importText('trojan://pw@t.example.com:443?security=tls#T\ntrojan://pw@u.example.com:443?security=tls#U');
+      });
+
+      test('disconnects for sleep and reconnects the same config on wake, quietly', () async {
+        final u = bloc.value.profiles.firstWhere((p) => p.name == 'U').id;
+        await bloc.connect(u);
+        await bloc.stopForSleep();
+        expect(bloc.value.connection.phase, ConnectionPhase.disconnected);
+        expect(engine.disconnects, 1);
+
+        await bloc.resumeAfterSleep();
+        expect(bloc.value.connection.isConnected, isTrue);
+        expect(engine.connects.last.id, u);
+        expect(notes, isEmpty, reason: 'a planned stop is not a drop');
+
+        await bloc.resumeAfterSleep();
+        expect(engine.connects, hasLength(2), reason: 'only once per sleep');
+      });
+
+      test('leaves the VPN off when it was off at sleep, or when the user acted meanwhile', () async {
+        await bloc.stopForSleep();
+        await bloc.resumeAfterSleep();
+        expect(engine.connects, isEmpty);
+
+        await bloc.connect();
+        await bloc.stopForSleep();
+        await bloc.connect(); // the user reconnected first
+        await bloc.resumeAfterSleep();
+        expect(engine.connects, hasLength(2));
+      });
+
+      test('retries a reconnect that fails while the network comes back', () async {
+        V2rayBloc.wakeRetryDelays = [const Duration(milliseconds: 30)];
+        await bloc.connect();
+        await bloc.stopForSleep();
+        engine.failWith = const VpnException('network unreachable');
+        final resumed = bloc.resumeAfterSleep();
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        engine.failWith = null;
+        await resumed;
+        expect(bloc.value.connection.isConnected, isTrue);
+        expect(notes, isEmpty);
+      });
+
+      test('says so when it can\'t reconnect after sleep', () async {
+        V2rayBloc.wakeRetryDelays = [const Duration(milliseconds: 10)];
+        await bloc.connect();
+        await bloc.stopForSleep();
+        engine.failWith = const VpnException('network unreachable');
+        await bloc.resumeAfterSleep();
+        expect(bloc.value.connection.phase, ConnectionPhase.failed);
+        expect(notes.single.title, 'VPN not reconnected');
+        expect(notes.single.body, contains('network unreachable'));
+      });
     });
 
     test('connects at launch when asked to', () async {

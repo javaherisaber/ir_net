@@ -94,6 +94,16 @@ class AppSharedPreferences {
     (await _preference).setString(_keyLeakCheckList, previousChecklist.join(';'));
   }
 
+  /// Desktop: disconnect the VPN and pause IRNet's checks while the computer
+  /// sleeps, then pick both back up on wake.
+  static Future<bool> get stopOnSleep async {
+    return (await _preference).getBool(_keyStopOnSleep) ?? false;
+  }
+
+  static Future<void> setStopOnSleep(bool value) async {
+    (await _preference).setBool(_keyStopOnSleep, value);
+  }
+
   static Future<bool> get qualityMonitoring async {
     return (await _preference).getBool(_keyQualityMonitoring) ?? true;
   }
@@ -159,6 +169,7 @@ class AppSharedPreferences {
   static const _keyKerioLowBalanceToastCount = 'kerioLowBalanceToastCount';
   static const _keyKerioLowBalanceToastDate = 'kerioLowBalanceToastDate';
   static const _keyQualityMonitoring = 'qualityMonitoring';
+  static const _keyStopOnSleep = 'stopOnSleep';
   static const _keyQualityInterval = 'qualityInterval';
   static const _keyUsageTracking = 'usageTracking';
   static const _keyUsageLookups = 'usageLookups';

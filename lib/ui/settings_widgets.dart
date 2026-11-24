@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:ir_net/data/shared_preferences.dart';
 import 'package:ir_net/main.dart';
 import 'package:ir_net/utils/flag_tray_icon.dart';
+import 'package:ir_net/utils/platform.dart';
 import 'package:ir_net/utils/usage_collectors.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 
@@ -48,6 +49,14 @@ class _SettingsViewState extends State<SettingsView> {
             badge: 'Windows & Linux',
           ),
           _launchAtStartup(),
+          if (PlatformUtils.isDesktop)
+            _futureToggle(
+              title: 'Stop on sleep',
+              subtitle: 'Saves battery: disconnects the VPN and pauses IRNet\'s checks while the computer '
+                  'sleeps, then reconnects and resumes when it wakes',
+              value: AppSharedPreferences.stopOnSleep,
+              onChanged: AppSharedPreferences.setStopOnSleep,
+            ),
         ]),
         const SizedBox(height: 18),
         _group('Monitoring', [
