@@ -60,3 +60,5 @@ sentry.properties
 nul
 # Xray core binaries for the desktop builds (dart run tool/fetch_xray.dart)
 /third_party/xray/
+# Local macOS code signing (team and identity), see macos/Runner/Configs/AppInfo.xcconfig
+/macos/Runner/Configs/Signing.xcconfig

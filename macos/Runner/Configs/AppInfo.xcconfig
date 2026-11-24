@@ -12,3 +12,15 @@ PRODUCT_BUNDLE_IDENTIFIER = com.example.irNet
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2023 com.example. All rights reserved.
+
+// Signing style for the app target (moved here from the project file so the
+// optional Signing.xcconfig below can switch it to Manual).
+CODE_SIGN_STYLE = Automatic
+
+// Optional local code signing (git-ignored), e.g.
+//   CODE_SIGN_STYLE = Manual
+//   CODE_SIGN_IDENTITY = Apple Development
+//   DEVELOPMENT_TEAM = <your team id>
+// Without it the app is signed ad-hoc, and macOS won't let IRNet post its own
+// notifications: they fall back to AppleScript and show as "Script Editor".
+#include? "Signing.xcconfig"

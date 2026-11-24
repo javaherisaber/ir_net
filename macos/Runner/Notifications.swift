@@ -11,6 +11,11 @@ class Notifications: NSObject, UNUserNotificationCenterDelegate {
 
   func register(messenger: FlutterBinaryMessenger) {
     UNUserNotificationCenter.current().delegate = self
+    // Ask once at launch, so the first VPN or balance alert isn't the moment
+    // macOS decides (and so IRNet appears in System Settings > Notifications).
+    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, error in
+      if let error = error { NSLog("IRNet notifications: \(error.localizedDescription)") }
+    }
     let channel = FlutterMethodChannel(name: "ir_net/notify", binaryMessenger: messenger)
     channel.setMethodCallHandler { [weak self] call, result in
       guard call.method == "show", let args = call.arguments as? [String: Any],
