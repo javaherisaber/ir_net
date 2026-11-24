@@ -554,25 +554,42 @@ void main() {
 
     expect(page(), 0);
 
-    // Swipe left twice: VPN, then Leaks (on a card, away from any chart).
+    // Three tabs; the other sections open from Home.
+    for (final label in ['Home', 'VPN', 'Quality']) {
+      expect(find.text(label), findsWidgets, reason: label);
+    }
+    for (final label in ['Leaks', 'Usage', 'Speed', 'Kerio']) {
+      expect(find.text(label), findsNothing, reason: label);
+    }
+
+    // Swipe left twice: VPN, then Quality.
     for (final expected in [1.0, 2.0]) {
       await tester.fling(find.byType(PageView), const Offset(-300, 0), 1500);
       await frames();
       expect(page(), expected);
     }
-    expect(find.text('Leak detection'), findsOneWidget);
+    expect(find.text('Network quality'), findsOneWidget);
 
     // Swipe right goes back one tab.
     await tester.fling(find.byType(PageView), const Offset(300, 0), 1500);
     await frames();
     expect(page(), 1);
 
-    // The bottom nav jumps; Back from any tab returns to Home.
-    await tester.tap(find.text('Kerio'));
+    // The bottom bar jumps; Back from a tab returns to Home.
+    await tester.tap(find.text('Quality'));
     await frames();
-    expect(find.text('Kerio balance'), findsOneWidget);
+    expect(page(), 2);
     expect(await tester.binding.handlePopRoute(), isTrue, reason: 'handled by the app, not passed on to Android');
     await frames();
+    expect(page(), 0);
+
+    // A section without a tab opens from its Home card; Back closes it.
+    await tester.tap(find.text('Leak detection').first);
+    await frames();
+    expect(find.byType(LeakSection), findsOneWidget);
+    expect(await tester.binding.handlePopRoute(), isTrue);
+    await frames();
+    expect(find.byType(LeakSection), findsNothing);
     expect(page(), 0);
 
     // On Home, Back is left to Android (it closes the screen as before).

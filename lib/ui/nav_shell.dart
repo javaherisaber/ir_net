@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:ir_net/main.dart';
 import 'package:ir_net/utils/app_info.dart';
 import 'package:ir_net/utils/platform.dart';
-import 'package:ir_net/utils/usage_collectors.dart';
 
 import 'components.dart';
 import 'connection_widgets.dart';
@@ -254,14 +253,12 @@ class _MobileTab {
 }
 
 /// Data usage has a tab only where the OS reports per-app traffic.
-final _mobileTabs = <_MobileTab>[
-  const _MobileTab('Home', Icons.grid_view_rounded),
-  const _MobileTab('VPN', Icons.vpn_lock_outlined),
-  const _MobileTab('Leaks', Icons.verified_user_outlined),
-  const _MobileTab('Quality', Icons.network_check),
-  if (usageUnsupportedReason() == null) const _MobileTab('Usage', Icons.data_usage),
-  const _MobileTab('Speed', Icons.speed),
-  const _MobileTab('Kerio', Icons.account_balance_wallet_outlined),
+/// The bottom bar. Leaks, Data usage, Speed test and Kerio balance open
+/// from their cards on Home as screens of their own.
+const _mobileTabs = <_MobileTab>[
+  _MobileTab('Home', Icons.grid_view_rounded),
+  _MobileTab('VPN', Icons.vpn_lock_outlined),
+  _MobileTab('Quality', Icons.network_check),
 ];
 
 int _mobileIndex(String label) => _mobileTabs.indexWhere((t) => t.label == label);
@@ -304,6 +301,17 @@ class _MobileShellState extends State<_MobileShell> {
     );
   }
 
+  /// A section without a tab, as its own screen over Home.
+  void _openSection(String title, Widget body, {Widget? trailing}) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (context) => Scaffold(
+        body: SafeArea(
+          child: _page(title, body, trailing: trailing, onBack: () => Navigator.of(context).pop()),
+        ),
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     // Back from another tab returns to Home instead of leaving the app.
@@ -321,12 +329,8 @@ class _MobileShellState extends State<_MobileShell> {
             children: [
               for (final page in [
                 _homeTab(),
-                _tab('VPN', const VpnSection(compact: true)),
-                _tab('Leak detection', const LeakSection(compact: true), trailing: const _LeakOkPill()),
-                _tab('Network quality', const QualitySection(compact: true)),
-                if (usageUnsupportedReason() == null) _tab('Data usage', const UsageSection(compact: true)),
-                _tab('Speed test', const SpeedSection(compact: true)),
-                _tab('Kerio balance', const BalanceSection(compact: true)),
+                _page('VPN', const VpnSection(compact: true), onBack: () => _go(0)),
+                _page('Network quality', const QualitySection(compact: true), onBack: () => _go(0)),
               ])
                 _KeepAlive(child: page),
             ],
@@ -373,11 +377,12 @@ class _MobileShellState extends State<_MobileShell> {
               compact: true,
               onOpenConnection: _openConnection,
               onOpenVpn: () => _go(_mobileIndex('VPN')),
-              onOpenLeaks: () => _go(_mobileIndex('Leaks')),
               onOpenQuality: () => _go(_mobileIndex('Quality')),
-              onOpenUsage: () => _go(_mobileIndex('Usage')),
-              onOpenSpeed: () => _go(_mobileIndex('Speed')),
-              onOpenBalance: () => _go(_mobileIndex('Kerio')),
+              onOpenLeaks: () =>
+                  _openSection('Leak detection', const LeakSection(compact: true), trailing: const _LeakOkPill()),
+              onOpenUsage: () => _openSection('Data usage', const UsageSection(compact: true)),
+              onOpenSpeed: () => _openSection('Speed test', const SpeedSection(compact: true)),
+              onOpenBalance: () => _openSection('Kerio balance', const BalanceSection(compact: true)),
             ),
           ),
         ),
@@ -385,7 +390,7 @@ class _MobileShellState extends State<_MobileShell> {
     );
   }
 
-  Widget _tab(String title, Widget body, {Widget? trailing}) {
+  Widget _page(String title, Widget body, {Widget? trailing, required VoidCallback onBack}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -393,12 +398,9 @@ class _MobileShellState extends State<_MobileShell> {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Row(
             children: [
-              // Returns to Home/Overview (these screens are opened from the
-              // Overview cards as well as the bottom nav).
-              IconActionButton(
-                icon: Icons.arrow_back,
-                onPressed: () => _go(0),
-              ),
+              // Returns to Home (tabs open from Home's cards as well as the
+              // bottom bar; the other sections only from Home).
+              IconActionButton(icon: Icons.arrow_back, onPressed: onBack),
               const SizedBox(width: 12),
               Text(title, style: AppText.ui(19, FontWeight.w700, AppColors.text)),
               if (trailing != null) ...[const Spacer(), trailing],
