@@ -741,54 +741,61 @@ class _PowerButton extends StatelessWidget {
     final failed = phase == ConnectionPhase.failed;
     return Tooltip(
       message: connected || phase == ConnectionPhase.connecting ? 'Disconnect' : 'Connect',
-      child: Material(
-        shape: const CircleBorder(),
-        color: Colors.transparent,
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onPressed,
-          child: Ink(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: connected ? AppGradients.brand : null,
-              color: connected ? null : (failed ? AppColors.badSoft : AppColors.card2),
-              border: Border.all(
-                color: connected
-                    ? Colors.transparent
-                    : failed
-                        ? AppColors.badBorder
-                        : busy
-                            ? AppColors.warn.withValues(alpha: 0.5)
-                            : AppColors.line2,
-                width: 1.5,
-              ),
-              boxShadow: connected
-                  ? [BoxShadow(color: AppColors.accent.withValues(alpha: 0.35), blurRadius: 22, spreadRadius: 1)]
-                  : null,
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                if (busy)
-                  SizedBox(
-                    width: size - 8,
-                    height: size - 8,
-                    child: const CircularProgressIndicator(strokeWidth: 2, color: AppColors.warn),
-                  ),
-                Icon(
-                  Icons.power_settings_new,
-                  size: size * 0.42,
+      // The glow is painted here, outside the Material: ink decorations are
+      // clipped to the Material's square bounds, which cut the glow square.
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: connected
+              ? [BoxShadow(color: AppColors.accent.withValues(alpha: 0.35), blurRadius: 22, spreadRadius: 1)]
+              : null,
+        ),
+        child: Material(
+          shape: const CircleBorder(),
+          color: Colors.transparent,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onPressed,
+            child: Ink(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: connected ? AppGradients.brand : null,
+                color: connected ? null : (failed ? AppColors.badSoft : AppColors.card2),
+                border: Border.all(
                   color: connected
-                      ? AppColors.onAccent
+                      ? Colors.transparent
                       : failed
-                          ? AppColors.bad
-                          : onPressed == null
-                              ? AppColors.text3
-                              : AppColors.text,
+                          ? AppColors.badBorder
+                          : busy
+                              ? AppColors.warn.withValues(alpha: 0.5)
+                              : AppColors.line2,
+                  width: 1.5,
                 ),
-              ],
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  if (busy)
+                    SizedBox(
+                      width: size - 8,
+                      height: size - 8,
+                      child: const CircularProgressIndicator(strokeWidth: 2, color: AppColors.warn),
+                    ),
+                  Icon(
+                    Icons.power_settings_new,
+                    size: size * 0.42,
+                    color: connected
+                        ? AppColors.onAccent
+                        : failed
+                            ? AppColors.bad
+                            : onPressed == null
+                                ? AppColors.text3
+                                : AppColors.text,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
