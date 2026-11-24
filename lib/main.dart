@@ -13,12 +13,15 @@ import 'package:windows_single_instance/windows_single_instance.dart';
 import 'app.dart';
 import 'bloc.dart';
 import 'utils/app_info.dart';
+import 'utils/macos_migration.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 final bloc = AppBloc();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Before anything reads settings or the database.
+  await migrateFromMacSandbox();
   await initWindowManager();
   await initSingleInstance();
   await initWinToast();
@@ -58,6 +61,11 @@ class MacWindowListener extends WindowListener {
   }
 }
 
+class LinuxWindowListener extends WindowListener {
+  @override
+  void onWindowClose() => bloc.onExitClick();
+}
+
 Future<void> initWindowManager() async {
   if (!PlatformUtils.isDesktop) {
     return;
@@ -80,6 +88,12 @@ Future<void> initWindowManager() async {
       // On macOS, add window listener to handle close button
       if (Platform.isMacOS) {
         windowManager.addListener(MacWindowListener());
+      }
+      // Closing the window quits on Linux: go through Exit so the VPN puts
+      // the system proxy back (and the kill switch applies) first.
+      if (Platform.isLinux) {
+        await windowManager.setPreventClose(true);
+        windowManager.addListener(LinuxWindowListener());
       }
     },
   );

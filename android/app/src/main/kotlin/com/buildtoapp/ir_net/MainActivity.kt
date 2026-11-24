@@ -16,6 +16,8 @@ class MainActivity : FlutterActivity() {
         private const val CHANNEL = "ir_net/system_events"
         private const val USAGE_CHANNEL = "ir_net/net_usage"
         private const val SHARE_CHANNEL = "ir_net/share"
+        private const val XRAY_CHANNEL = "ir_net/xray"
+        private const val NOTIFY_CHANNEL = "ir_net/notify"
         private const val REQUEST_NOTIFICATION_PERMISSION = 1001
     }
 
@@ -31,6 +33,12 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL)
             .setMethodCallHandler(ShareHandler(this))
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, XRAY_CHANNEL)
+            .setMethodCallHandler(XrayTester(applicationContext))
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, NOTIFY_CHANNEL)
+            .setMethodCallHandler(AlertNotifier(applicationContext))
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->

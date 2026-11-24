@@ -12,6 +12,7 @@ import 'leak_widgets.dart';
 import 'sections.dart';
 import 'settings_widgets.dart';
 import 'theme.dart';
+import 'vpn_widgets.dart';
 
 /// Top-level chrome: desktop gets a sidebar, mobile gets a bottom nav bar.
 class AppShell extends StatelessWidget {
@@ -32,9 +33,10 @@ class _NavItem {
 
 const _navItems = <_NavItem>[
   _NavItem('Overview', Icons.grid_view_rounded),
+  _NavItem('VPN', Icons.vpn_lock_outlined),
   _NavItem('Leak detection', Icons.verified_user_outlined),
   _NavItem('Connection', Icons.public),
-  _NavItem('Data balance', Icons.account_balance_wallet_outlined),
+  _NavItem('Kerio balance', Icons.account_balance_wallet_outlined),
   _NavItem('Speed test', Icons.speed),
   _NavItem('Network quality', Icons.network_check),
   _NavItem('Data usage', Icons.data_usage),
@@ -59,23 +61,26 @@ class _DesktopShellState extends State<_DesktopShell> {
     switch (index) {
       case 0:
         return OverviewSection(
-          onOpenLeaks: () => _select(1),
-          onOpenBalance: () => _select(3),
-          onOpenSpeed: () => _select(4),
-          onOpenQuality: () => _select(5),
-          onOpenUsage: () => _select(6),
+          onOpenVpn: () => _select(1),
+          onOpenLeaks: () => _select(2),
+          onOpenBalance: () => _select(4),
+          onOpenSpeed: () => _select(5),
+          onOpenQuality: () => _select(6),
+          onOpenUsage: () => _select(7),
         );
       case 1:
-        return const LeakSection();
+        return const VpnSection();
       case 2:
-        return const ConnectionSection();
+        return const LeakSection();
       case 3:
-        return const BalanceSection();
+        return const ConnectionSection();
       case 4:
-        return const SpeedSection();
+        return const BalanceSection();
       case 5:
-        return const QualitySection();
+        return const SpeedSection();
       case 6:
+        return const QualitySection();
+      case 7:
         return const UsageSection();
       default:
         return const SettingsView();
@@ -247,11 +252,12 @@ class _MobileTab {
 /// Data usage has a tab only where the OS reports per-app traffic.
 final _mobileTabs = <_MobileTab>[
   const _MobileTab('Home', Icons.grid_view_rounded),
+  const _MobileTab('VPN', Icons.vpn_lock_outlined),
   const _MobileTab('Leaks', Icons.verified_user_outlined),
   const _MobileTab('Quality', Icons.network_check),
   if (usageUnsupportedReason() == null) const _MobileTab('Usage', Icons.data_usage),
   const _MobileTab('Speed', Icons.speed),
-  const _MobileTab('Balance', Icons.account_balance_wallet_outlined),
+  const _MobileTab('Kerio', Icons.account_balance_wallet_outlined),
 ];
 
 int _mobileIndex(String label) => _mobileTabs.indexWhere((t) => t.label == label);
@@ -281,12 +287,13 @@ class _MobileShellState extends State<_MobileShell> {
           index: _index,
           children: [
             _homeTab(),
+            _tab('VPN', const VpnSection(compact: true)),
             _tab('Leak detection', const LeakSection(compact: true),
                 trailing: const _LeakOkPill()),
             _tab('Network quality', const QualitySection(compact: true)),
             if (usageUnsupportedReason() == null) _tab('Data usage', const UsageSection(compact: true)),
             _tab('Speed test', const SpeedSection(compact: true)),
-            _tab('Data balance', const BalanceSection(compact: true)),
+            _tab('Kerio balance', const BalanceSection(compact: true)),
           ],
         ),
       ),
@@ -329,11 +336,12 @@ class _MobileShellState extends State<_MobileShell> {
             child: OverviewSection(
               compact: true,
               onOpenConnection: _openConnection,
+              onOpenVpn: () => setState(() => _index = _mobileIndex('VPN')),
               onOpenLeaks: () => setState(() => _index = _mobileIndex('Leaks')),
               onOpenQuality: () => setState(() => _index = _mobileIndex('Quality')),
               onOpenUsage: () => setState(() => _index = _mobileIndex('Usage')),
               onOpenSpeed: () => setState(() => _index = _mobileIndex('Speed')),
-              onOpenBalance: () => setState(() => _index = _mobileIndex('Balance')),
+              onOpenBalance: () => setState(() => _index = _mobileIndex('Kerio')),
             ),
           ),
         ),

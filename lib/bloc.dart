@@ -16,11 +16,12 @@ import 'package:ir_net/utils/http.dart';
 import 'package:ir_net/utils/system_tray.dart';
 import 'package:latlng/latlng.dart';
 import 'package:rxdart/rxdart.dart';
-import 'package:win_toast/win_toast.dart';
 
 import 'quality_bloc.dart';
 import 'usage_bloc.dart';
+import 'v2ray_bloc.dart';
 import 'utils/kerio.dart';
+import 'utils/notifier.dart';
 
 class AppBloc with AppSystemTray {
   static const platform = MethodChannel('ir_net/system_events');
@@ -40,12 +41,24 @@ class AppBloc with AppSystemTray {
 
   QualityBloc? _quality;
   UsageBloc? _usage;
+  V2rayBloc? _v2ray;
 
   /// Network quality monitoring (probes are attributed to the public IP).
   QualityBloc get quality => _quality ??= QualityBloc(
-        proxy: () => _proxyServer,
+        proxy: () => _effectiveProxy,
         onRecovered: () => _checkIpLocation(),
       );
+
+  /// The V2Ray VPN.
+  V2rayBloc get v2ray => _v2ray ??= V2rayBloc(onConnectionChanged: _onVpnChanged);
+
+  @visibleForTesting
+  set v2ray(V2rayBloc value) => _v2ray = value;
+
+  /// IRNet's own requests follow the VPN's local proxy while it is connected
+  /// (desktop proxy mode, and Android, where the tunnel excludes IRNet), else
+  /// the Windows system proxy.
+  String? get _effectiveProxy => _v2ray?.localProxy ?? _proxyServer;
 
   @visibleForTesting
   set quality(QualityBloc value) => _quality = value;
@@ -98,6 +111,13 @@ class AppBloc with AppSystemTray {
     _initializeNativeChannel();
     quality.initialize();
     usage.initialize();
+    v2ray.initialize();
+  }
+
+  /// Re-checks IP, leaks and ping right after the VPN connects or drops.
+  void _onVpnChanged() {
+    quality.onNetworkChanged();
+    _handleRefresh();
   }
 
   void _initializeNativeChannel() {
@@ -110,6 +130,7 @@ class AppBloc with AppSystemTray {
           || call.method == 'onWindowsWake' 
           || call.method == 'onLinuxWake') {
         quality.onWake();
+        v2ray.onNetworkChanged();
         await Future.delayed(const Duration(seconds: 3));
         _handleRefresh();
       }
@@ -171,9 +192,10 @@ class AppBloc with AppSystemTray {
 
   IOClient get _client {
     final httpClient = HttpClient();
-    if (_proxyServer != null) {
+    final proxy = _effectiveProxy;
+    if (proxy != null) {
       httpClient.findProxy = (uri) {
-        return 'PROXY $_proxyServer';
+        return 'PROXY $proxy';
       };
     } else {
       httpClient.findProxy = null;
@@ -211,6 +233,7 @@ class AppBloc with AppSystemTray {
   void _subscribeConnectivityChange() {
     Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> result) async {
       quality.onNetworkChanged();
+      v2ray.onNetworkChanged();
       if (result.contains(ConnectivityResult.none)) {
         setSystemTrayStatusToOffline();
       } else {
@@ -329,7 +352,7 @@ class AppBloc with AppSystemTray {
     }
 
     if (balance.remaining < 1073741824 && lowBalanceToastCount < 2) {
-      _showToast('Less than 1 GB is left in your kerio.dart account!');
+      _showToast('Less than 1 GB is left in your Kerio account.', title: 'Kerio balance', id: 'kerio-low');
       await AppSharedPreferences.setKerioLowBalanceToastCount(lowBalanceToastCount + 1);
       await AppSharedPreferences.setKerioLowBalanceToastDate(today.toIso8601String());
     }
@@ -337,12 +360,8 @@ class AppBloc with AppSystemTray {
     _kerioBalance.value = balance;
   }
 
-  void _showToast(String title) {
-    if (Platform.isWindows == false) {
-      // todo: implement other platforms
-      return;
-    }
-    WinToast.instance().showToast(type: ToastType.text01, title: title);
+  void _showToast(String message, {String title = 'IRNet', String? id}) {
+    AppNotifier.show(title, message, id: id);
   }
 
   void _checkNetworkConnectivity() async {
@@ -386,9 +405,12 @@ class AppBloc with AppSystemTray {
     destroySystemTray();
     _cancelAndroidNotification();
     _stopAndroidService();
-    // Persist the last few seconds of quality / usage data.
-    await Future.wait([quality.dispose(), usage.dispose()])
-        .timeout(const Duration(seconds: 2), onTimeout: () => []);
+    // Persist the last few seconds of quality / usage data, and put the
+    // system proxy back (desktop) before the VPN core goes away with us.
+    await Future.wait([
+      Future.wait([quality.dispose(), usage.dispose()]).timeout(const Duration(seconds: 2), onTimeout: () => []),
+      v2ray.dispose().timeout(const Duration(seconds: 8), onTimeout: () {}),
+    ]);
     exit(0);
   }
 

@@ -13,6 +13,8 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
 
+    Notifications.shared.register(messenger: flutterViewController.engine.binaryMessenger)
+
     // Exported reports are saved to Downloads; these open or reveal them.
     // copyImage puts a screenshot on the clipboard.
     let share = FlutterMethodChannel(

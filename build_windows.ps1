@@ -62,6 +62,14 @@ if ($foundOutput) {
     Write-Warning "Could not find 'OutputBaseFilename=IRNet_windows_setup...' in $issFile. Filename not updated."
 }
 
+# Fetch the Xray core the V2Ray VPN runs (pinned version, hash-checked)
+Write-Host "Fetching the Xray core..."
+dart run tool/fetch_xray.dart windows
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Fetching the Xray core failed."
+    exit $LASTEXITCODE
+}
+
 # Run flutter build
 Write-Host "Running flutter build windows..."
 flutter build windows

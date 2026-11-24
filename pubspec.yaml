@@ -44,6 +44,14 @@ dependencies:
   # Rasterising country flags into system tray icons (see utils/flag_tray_icon.dart)
   jovial_svg: ^1.1.28
   image: ^4.8.0
+  # V2Ray VPN (lib/v2ray): Android VpnService + Xray (libv2ray). Desktop runs
+  # the bundled Xray binary instead (tool/fetch_xray.dart).
+  flutter_v2ray: ^2.0.0
+  # Config import: camera QR scanning on phones, QR images and .dat geo files
+  # from disk everywhere (zxing2 decodes QR images in pure Dart).
+  mobile_scanner: ^7.5.0
+  zxing2: ^0.2.4
+  file_selector: ^1.1.0
 
 dev_dependencies:
   sentry_dart_plugin: ^3.2.0

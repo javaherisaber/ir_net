@@ -59,8 +59,36 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
+            // libv2ray (Go) looks its Java classes up over JNI; keep R8 off them.
+            proguardFiles("proguard-rules.pro")
         }
     }
+
+    // flutter_v2ray starts its tun2socks binary from the native library
+    // folder, so native libraries must be extracted at install time.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+}
+
+repositories {
+    // AndroidLibXrayLite (libv2ray), as flutter_v2ray resolves it.
+    ivy {
+        name = "AndroidLibXrayLite"
+        url = uri("https://github.com/2dust/AndroidLibXrayLite/releases/download")
+        patternLayout { artifact("[revision]/libv2ray.aar") }
+        metadataSources { artifact() }
+        content { includeGroup("com.github.2dust") }
+    }
+}
+
+dependencies {
+    // The in-app delay tester (XrayTester.kt). Newer than flutter_v2ray asks for
+    // (same Java API), so Gradle gives the plugin this one too: the same core
+    // as the desktop builds, with the "fragment" finalmask.
+    implementation("com.github.2dust:libv2ray:v26.11.9@aar")
 }
 
 flutter {

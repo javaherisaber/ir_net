@@ -1,15 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict>
-	<key>com.apple.security.app-sandbox</key>
-	<true/>
-	<key>com.apple.security.network.client</key>
-    <true/>
-	<!-- Receiving UDP (the STUN probes) needs the server entitlement in the App Sandbox. -->
-	<key>com.apple.security.network.server</key>
-	<true/>
-	<key>com.apple.security.files.downloads.read-write</key>
-	<true/>
-</dict>
+<!-- No App Sandbox: the V2Ray VPN runs the bundled Xray core and changes the
+     system proxy (networksetup), which the sandbox forbids. IRNet ships as a
+     DMG, not through the App Store. Settings and history from the sandboxed
+     builds are moved over on first launch (lib/utils/macos_migration.dart). -->
+<dict/>
 </plist>

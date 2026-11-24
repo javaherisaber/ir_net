@@ -86,6 +86,24 @@ if(PLUGIN_BUNDLED_LIBRARIES)
     COMPONENT Runtime)
 endif()
 
+# V2Ray VPN: the Xray core runs next to the executable. Fetch it with
+#   dart run tool/fetch_xray.dart windows
+set(XRAY_CORE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/xray/windows")
+if(EXISTS "${XRAY_CORE_DIR}/xray.exe")
+  install(PROGRAMS "${XRAY_CORE_DIR}/xray.exe" DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    COMPONENT Runtime)
+  install(FILES "${XRAY_CORE_DIR}/LICENSE" DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    RENAME "xray-LICENSE.txt" COMPONENT Runtime)
+  # Tunnel mode's TUN adapter driver library, loaded from next to xray.exe.
+  install(FILES "${XRAY_CORE_DIR}/wintun.dll" DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    COMPONENT Runtime)
+  install(FILES "${XRAY_CORE_DIR}/LICENSE-Wintun" DESTINATION "${CMAKE_INSTALL_PREFIX}"
+    RENAME "wintun-LICENSE.txt" COMPONENT Runtime)
+else()
+  message(WARNING "Xray core not found: the VPN can't connect in this build. "
+    "Run: dart run tool/fetch_xray.dart windows")
+endif()
+
 # Fully re-copy the assets directory on each build to avoid having stale files
 # from a previous install.
 set(FLUTTER_ASSET_DIR_NAME "flutter_assets")

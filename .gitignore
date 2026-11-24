@@ -58,3 +58,5 @@ sentry.properties
 
 # Stray file from a cmd-style `>nul` redirect run in a POSIX shell
 nul
+# Xray core binaries for the desktop builds (dart run tool/fetch_xray.dart)
+/third_party/xray/

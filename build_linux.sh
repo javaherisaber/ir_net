@@ -56,6 +56,8 @@ mkdir -p "$OUTPUT_DIR"
 
 # Step 1: Build the app for release
 print_info "STEP 1: Building Flutter app for Linux release..."
+# The Xray core the V2Ray VPN runs (pinned version, hash-checked)
+(cd "$SCRIPT_DIR" && dart run tool/fetch_xray.dart linux)
 flutter build linux --release
 
 if [[ ! -d "$BUILD_DIR" ]]; then
@@ -82,6 +84,13 @@ chmod +x "$PKG_DIR/usr/bin/ir_net/ir_net"
 # Sentry spawns crashpad_handler as a process, but the bundle install drops its execute bit
 if [[ -f "$PKG_DIR/usr/bin/ir_net/lib/crashpad_handler" ]]; then
     chmod +x "$PKG_DIR/usr/bin/ir_net/lib/crashpad_handler"
+fi
+# The V2Ray VPN starts the bundled Xray core as a process too (a static Go binary, so it
+# adds no shared library dependencies)
+if [[ -f "$PKG_DIR/usr/bin/ir_net/xray" ]]; then
+    chmod +x "$PKG_DIR/usr/bin/ir_net/xray"
+else
+    print_warning "Xray core missing from the bundle: the VPN won't connect in this package"
 fi
 
 print_info "Build output copied"

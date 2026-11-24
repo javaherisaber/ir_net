@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:ir_net/main.dart';
 import 'package:ir_net/quality_bloc.dart';
@@ -16,6 +17,7 @@ import 'quality_widgets.dart';
 import 'speed_widgets.dart';
 import 'theme.dart';
 import 'usage_widgets.dart';
+import 'vpn_widgets.dart';
 
 /// Overview / Home.
 class OverviewSection extends StatelessWidget {
@@ -23,6 +25,7 @@ class OverviewSection extends StatelessWidget {
     super.key,
     this.compact = false,
     this.onOpenConnection,
+    this.onOpenVpn,
     this.onOpenLeaks,
     this.onOpenBalance,
     this.onOpenSpeed,
@@ -32,6 +35,7 @@ class OverviewSection extends StatelessWidget {
 
   final bool compact;
   final VoidCallback? onOpenConnection;
+  final VoidCallback? onOpenVpn;
   final VoidCallback? onOpenLeaks;
   final VoidCallback? onOpenBalance;
   final VoidCallback? onOpenSpeed;
@@ -46,6 +50,10 @@ class OverviewSection extends StatelessWidget {
       children: [
         ConnectionHeroCard(compact: compact, onDetails: onOpenConnection),
         SizedBox(height: gap),
+        if (!kIsWeb) ...[
+          VpnSummaryCard(onTap: onOpenVpn, compact: compact),
+          SizedBox(height: gap),
+        ],
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -165,7 +173,7 @@ class ConnectionSection extends StatelessWidget {
   }
 }
 
-/// Data balance + Kerio account.
+/// Kerio balance + Kerio account.
 class BalanceSection extends StatelessWidget {
   const BalanceSection({super.key, this.compact = false});
   final bool compact;

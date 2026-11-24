@@ -157,7 +157,7 @@ class BalanceSummaryCard extends StatelessWidget {
                   const Icon(Icons.account_balance_wallet_outlined,
                       size: 17, color: AppColors.accent),
                   const SizedBox(width: 8),
-                  Text('Data balance', style: AppText.ui(13, FontWeight.w500, AppColors.text2)),
+                  Text('Kerio balance', style: AppText.ui(13, FontWeight.w500, AppColors.text2)),
                 ],
               ),
               const SizedBox(height: 14),
