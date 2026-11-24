@@ -10,6 +10,7 @@ import 'package:ir_net/utils/notifier.dart';
 import 'package:ir_net/v2ray/app_list.dart';
 import 'package:ir_net/v2ray/share_link.dart';
 import 'package:ir_net/v2ray/subscription.dart';
+import 'package:ir_net/v2ray/v2ray_store.dart';
 import 'package:ir_net/v2ray/vpn_engine.dart';
 import 'package:ir_net/v2ray/xray_config.dart';
 import 'package:ir_net/v2ray/xray_runner.dart';
@@ -378,6 +379,30 @@ PersistentKeepalive = 25
 
       await bloc.checkSubscriptionAlerts();
       expect(notes, hasLength(2), reason: 'already warned today');
+    });
+
+    test('the Quick Settings tile forgets a connection whose config was removed', () async {
+      await bloc.importText('trojan://pw@t.example.com:443?security=tls#T\ntrojan://pw@u.example.com:443?security=tls#U');
+      final ids = bloc.value.profiles.map((p) => p.id).toList();
+      final store = V2rayStore();
+      Future<String?> saved() async => (await SharedPreferences.getInstance()).getString('v2ray.quickConnect');
+
+      await store.saveQuickConnect({'profileId': ids[0], 'config': '{}'});
+      await bloc.removeProfile(ids[1]);
+      expect(await saved(), isNotNull, reason: 'another config was removed');
+      await bloc.removeProfile(ids[0]);
+      expect(await saved(), isNull);
+    });
+
+    test('removes the VPN plugin\'s geo copies but keeps imported ones', () async {
+      final dir = await Directory('${tmp.path}/geo').create();
+      for (final name in ['geoip.dat', 'geosite.dat', 'geoip-only-cn-private.dat', 'iran-geoip.dat']) {
+        await File('${dir.path}/$name').writeAsString('x');
+      }
+      final removed = await V2rayBloc.removeUntrackedGeoFiles(dir, ['geosite.dat', 'iran-geoip.dat']);
+      expect(removed, ['geoip.dat', 'geoip-only-cn-private.dat']);
+      final left = dir.listSync().map((f) => f.uri.pathSegments.last).toList()..sort();
+      expect(left, ['geosite.dat', 'iran-geoip.dat'], reason: 'imported files stay');
     });
 
     test('connects at launch when asked to', () async {

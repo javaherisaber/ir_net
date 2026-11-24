@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The IP location lookup (IpLookup.kt) uses ip-api.com's free endpoint,
+     which is HTTP only. Everything else keeps Android's default: no
+     cleartext traffic. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">ip-api.com</domain>
+    </domain-config>
+</network-security-config>

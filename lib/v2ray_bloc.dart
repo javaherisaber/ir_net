@@ -169,6 +169,7 @@ class V2rayBloc {
     } catch (e) {
       debugPrint('V2Ray: recovery failed: $e');
     }
+    if (!kIsWeb && Platform.isAndroid) unawaited(_removePluginGeoCopies());
     final iranUpdated = await _store.loadIranRulesUpdated();
     if (iranUpdated != null) _emit(value.copyWith(iranRules: IranRulesStatus(updatedAt: iranUpdated)));
     // The VPN isn't connected at launch: the kill switch keeps the network off.
@@ -589,6 +590,7 @@ class V2rayBloc {
       clearSelected: removed.contains(value.selectedId) || value.selectedId == AutoSelect.idFor(id),
     ));
     await _save();
+    await _store.forgetQuickConnect(removed);
   }
 
   Future<void> removeProfile(String id) async {
@@ -598,6 +600,7 @@ class V2rayBloc {
       clearSelected: value.selectedId == id,
     ));
     await _save();
+    await _store.forgetQuickConnect({id});
   }
 
   // ───────────────────────────── delay tests ─────────────────────────────
@@ -954,6 +957,34 @@ class V2rayBloc {
   Future<void> setAutoReconnect(bool on) => _updateSettings(value.settings.copyWith(autoReconnect: on));
 
   Future<void> setNotify(bool on) => _updateSettings(value.settings.copyWith(notify: on));
+
+  /// Earlier Android builds let flutter_v2ray copy its bundled geoip.dat and
+  /// geosite.dat (27 MB) into the geo files folder on every start. IRNet
+  /// never used them; remove them unless the user imported files by those
+  /// names (theirs may have been replaced, but they're still theirs to keep).
+  Future<void> _removePluginGeoCopies() async {
+    try {
+      final dir = await engine.assetDirectory();
+      if (dir != null) await removeUntrackedGeoFiles(dir, value.assets.map((a) => a.fileName));
+    } catch (e) {
+      debugPrint('V2Ray: geo cleanup failed: $e');
+    }
+  }
+
+  @visibleForTesting
+  static Future<List<String>> removeUntrackedGeoFiles(Directory dir, Iterable<String> imported) async {
+    final keep = imported.toSet();
+    final removed = <String>[];
+    for (final name in const ['geoip.dat', 'geosite.dat', 'geoip-only-cn-private.dat']) {
+      if (keep.contains(name)) continue;
+      final file = File(p.join(dir.path, name));
+      if (await file.exists()) {
+        await file.delete();
+        removed.add(name);
+      }
+    }
+    return removed;
+  }
 
   // ───────────────────────────── Iranian sites go direct ─────────────────────────────
 

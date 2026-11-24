@@ -35,6 +35,10 @@ class V2rayStore {
   /// proxy, so a crash can be undone on the next launch.
   static const _recoveryKey = 'v2ray.recovery';
 
+  /// The last connection as started, for the Android Quick Settings tile
+  /// (read natively by VpnTileService.kt as "flutter.v2ray.quickConnect").
+  static const _quickConnectKey = 'v2ray.quickConnect';
+
   Future<V2raySnapshot> load() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_key);
@@ -161,6 +165,21 @@ class V2rayStore {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<void> saveQuickConnect(Map<String, dynamic> value) async =>
+      (await SharedPreferences.getInstance()).setString(_quickConnectKey, jsonEncode(value));
+
+  /// Forgets the tile's saved connection when its config is removed.
+  Future<void> forgetQuickConnect(Set<String> removedProfileIds) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_quickConnectKey);
+    if (raw == null) return;
+    try {
+      final id = (jsonDecode(raw) as Map)['profileId'];
+      if (!removedProfileIds.contains(id)) return;
+    } catch (_) {}
+    await prefs.remove(_quickConnectKey);
   }
 
   Future<void> saveRecovery(Map<String, dynamic>? value) async {

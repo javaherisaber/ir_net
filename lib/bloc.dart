@@ -133,6 +133,24 @@ class AppBloc with AppSystemTray {
         v2ray.onNetworkChanged();
         await Future.delayed(const Duration(seconds: 3));
         _handleRefresh();
+      } else if (call.method == 'onIpChanged') {
+        // Android: IpMonitor's lookups, also the ones it makes by itself when
+        // the network or VPN changes.
+        final args = call.arguments;
+        if (args is Map && args['countryCode'] != null) {
+          _applyIpLookup(Map<String, dynamic>.from(args));
+        } else {
+          _checkNetworkConnectivity();
+        }
+      } else if (call.method == 'onExitRequested') {
+        // "Exit IRNet" in the Android notification.
+        onExitClick();
+      } else if (call.method == 'onDisconnectRequested') {
+        // "Disconnect" in the Android notification while the VPN is on.
+        await v2ray.disconnect();
+      } else if (call.method == 'onConnectRequested') {
+        // The "IRNet VPN" Quick Settings tile.
+        await v2ray.connect();
       }
     });
   }
@@ -253,7 +271,7 @@ class AppBloc with AppSystemTray {
     while (true) {
       await _checkProxySettings();
       _verifyLeakedSites();
-      _checkIpLocation();
+      _checkIpLocation(force: false);
       await Future.delayed(const Duration(seconds: 20));
     }
   }
@@ -287,7 +305,10 @@ class AppBloc with AppSystemTray {
     }
   }
 
-  Future<void> _checkIpLocation() async {
+  /// Looks up where the traffic comes out. [force] skips a recent answer
+  /// (Android reuses one under 15 s old for the periodic check).
+  Future<void> _checkIpLocation({bool force = true}) async {
+    if (Platform.isAndroid) return _requestAndroidIpLookup(force: force);
     http.Response response;
     try {
       final ipv4 = (await _client.get(Uri.parse("https://api.ipify.org"))).body;
@@ -295,25 +316,45 @@ class AppBloc with AppSystemTray {
       response = await _client.get(uri).timeout(const Duration(seconds: 10));
     } on TimeoutException {
       _checkNetworkConnectivity();
-      _updateAndroidNotification({});
       return;
     } on SocketException catch (ex) {
       _checkNetworkRefuseException(ex);
-      _updateAndroidNotification({});
       return;
     } on Exception {
       _checkNetworkConnectivity();
-      _updateAndroidNotification({});
       return;
     }
-    final json = jsonDecode(response.body);
-    if (json['lat'] != null && json['lon'] != null) {
-      _latLng.sink.add(LatLng(json['lat'], json['lon']));
+    _applyIpLookup(jsonDecode(response.body));
+  }
+
+  void _applyIpLookup(dynamic json) {
+    final lat = json['lat'], lon = json['lon'];
+    if (lat is num && lon is num) {
+      _latLng.sink.add(LatLng(lat.toDouble(), lon.toDouble()));
     }
     _ipLookupResult.value = json;
     quality.onIpLookup(json);
     _updateCountryTrayIcon();
-    _updateAndroidNotification(json);
+  }
+
+  /// On Android the lookup runs natively (IpMonitor.kt), which keeps the
+  /// notification current even while the UI isn't running; the answer comes
+  /// back as "onIpChanged". IRNet is outside its own VPN there, so lookups
+  /// go through the VPN's local proxy while it's connected.
+  Future<void> _requestAndroidIpLookup({required bool force}) async {
+    try {
+      final vpn = _v2ray?.value.connection;
+      await platform.invokeMethod('lookupIp', {
+        'proxy': _effectiveProxy,
+        'maxAgeMs': force ? 0 : 15000,
+        // Named in the notification while the VPN is connected.
+        'vpnName': vpn != null && vpn.isConnected ? vpn.profileName : null,
+      });
+    } on PlatformException catch (e) {
+      debugPrint('IP lookup request failed: $e');
+    } on MissingPluginException catch (e) {
+      debugPrint('IP lookup not available: $e');
+    }
   }
 
   Future<void> _checkProxySettings() async {
@@ -411,6 +452,15 @@ class AppBloc with AppSystemTray {
       Future.wait([quality.dispose(), usage.dispose()]).timeout(const Duration(seconds: 2), onTimeout: () => []),
       v2ray.dispose().timeout(const Duration(seconds: 8), onTimeout: () {}),
     ]);
+    if (Platform.isAndroid) {
+      // Also closes the task and the VPN's process.
+      try {
+        await platform.invokeMethod('exitApp');
+        return;
+      } catch (e) {
+        debugPrint('Native exit failed: $e');
+      }
+    }
     exit(0);
   }
 
@@ -458,23 +508,6 @@ class AppBloc with AppSystemTray {
     }
     updateIconWhenCountryLoaded(_foundALeakedSite, isIran, countryCode, tooltip);
     debugPrint('Country => $country');
-  }
-
-  void _updateAndroidNotification(Map json) {
-    if (!Platform.isAndroid) return;
-    try {
-      platform.invokeMethod('updateNotification', {
-        'countryCode': json['countryCode'] ?? '',
-        'country': json['country'] ?? '',
-        'city': json['city'] ?? '',
-        'isp': json['isp'] ?? '',
-        'ip': json['query'] ?? '',
-      });
-    } on PlatformException catch (e) {
-      debugPrint('Failed to update notification: $e');
-    } on MissingPluginException catch (e) {
-      debugPrint('Notification plugin not available: $e');
-    }
   }
 
   void _cancelAndroidNotification() {

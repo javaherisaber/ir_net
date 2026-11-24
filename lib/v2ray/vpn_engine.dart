@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_v2ray/flutter_v2ray.dart';
 import 'package:path/path.dart' as p;
 
@@ -547,8 +548,31 @@ class AndroidVpnEngine implements VpnEngine {
   @override
   Stream<EngineEvent> get events => _events.stream;
 
+  /// The VPN's status, per engine (VpnStatusStream.kt). flutter_v2ray's own
+  /// status stream shares one sink between engines, and an old activity's
+  /// teardown silences a new one: connects then time out on a working VPN.
+  static const _statusChannel = EventChannel('ir_net/vpn_status');
+  StreamSubscription<dynamic>? _status;
+
+  void _onStatusEvent(dynamic e) {
+    if (e is! Map) return;
+    int n(Object? v) => v is int ? v : int.tryParse('$v') ?? 0;
+    _onStatus(V2RayStatus(
+      duration: '${e['duration'] ?? ''}',
+      uploadSpeed: n(e['uploadSpeed']),
+      downloadSpeed: n(e['downloadSpeed']),
+      upload: n(e['upload']),
+      download: n(e['download']),
+      state: '${e['state'] ?? 'DISCONNECTED'}',
+    ));
+  }
+
   Future<FlutterV2ray> _ensurePlugin() async {
-    final plugin = _plugin ??= FlutterV2ray(onStatusChanged: _onStatus);
+    _status ??= _statusChannel.receiveBroadcastStream().listen(_onStatusEvent, onError: (Object e) {
+      debugPrint('V2Ray: status stream failed: $e');
+    });
+    // Status comes from _statusChannel instead.
+    final plugin = _plugin ??= FlutterV2ray(onStatusChanged: (_) {});
     if (!_initialized) {
       await plugin.initializeV2Ray(
         notificationIconResourceType: 'mipmap',
@@ -656,6 +680,17 @@ class AndroidVpnEngine implements VpnEngine {
     _running = true;
     final httpProxy = 'irnet:$pass@127.0.0.1:$http';
     await store.saveRecovery({'profileId': profile.id, 'httpProxy': httpProxy});
+    // What the Quick Settings tile starts when the app isn't running
+    // (VpnTileService.kt): this connection, exactly.
+    await store.saveQuickConnect({
+      'remark': profiles.length > 1 ? 'Auto (${profiles.length} servers)' : profile.name,
+      'config': XrayConfigBuilder.encode(config),
+      'blockedApps': tunnel && options.bypassApps.isNotEmpty ? options.bypassApps : null,
+      'bypassSubnets': tunnel ? routes : null,
+      'proxyOnly': !tunnel,
+      'profileId': profile.id,
+      'httpProxy': httpProxy,
+    });
     return EngineSession(
       httpProxy: httpProxy,
       systemProxy: tunnel,

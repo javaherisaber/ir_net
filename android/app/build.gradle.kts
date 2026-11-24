@@ -64,6 +64,18 @@ android {
         }
     }
 
+    // libv2ray's AAR bundles geoip.dat / geosite.dat (27 MB), and flutter_v2ray
+    // copies them on every start into the folder the user's imported geo files
+    // live in, overwriting an imported geoip.dat / geosite.dat. IRNet never
+    // uses them (geoip:/geosite: rules need an imported file), so leave them
+    // out. The first entries are aapt's defaults, which a custom list replaces.
+    androidResources {
+        ignoreAssetsPatterns += listOf(
+            "!.svn", "!.git", "!.ds_store", "!*.scc", ".*", "<dir>_*", "!CVS", "!thumbs.db", "!picasa.ini", "!*~",
+            "geoip.dat", "geosite.dat", "geoip-only-cn-private.dat",
+        )
+    }
+
     // flutter_v2ray starts its tun2socks binary from the native library
     // folder, so native libraries must be extracted at install time.
     packaging {
@@ -89,6 +101,10 @@ dependencies {
     // (same Java API), so Gradle gives the plugin this one too: the same core
     // as the desktop builds, with the "fragment" finalmask.
     implementation("com.github.2dust:libv2ray:v26.11.9@aar")
+
+    testImplementation("junit:junit:4.13.2")
+    // Android's org.json is only a stub in local unit tests.
+    testImplementation("org.json:json:20240303")
 }
 
 flutter {

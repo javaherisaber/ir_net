@@ -1,5 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- IpMonitor watches the default network to refresh the IP location. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Per-app data usage (NetworkStatsManager); the user grants it in
          Settings > Usage access. -->
@@ -11,7 +14,8 @@
     <application
         android:label="IRNet"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:networkSecurityConfig="@xml/network_security_config">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -40,8 +44,26 @@
             android:exported="false">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Continuous IP location monitoring for network privacy" />
+                android:value="Continuous IP location monitoring for network privacy: updates the location notification as soon as the network or VPN changes" />
         </service>
+        <!-- "IRNet VPN" in Quick Settings: turns the VPN on and off. -->
+        <service
+            android:name=".VpnTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_qs_vpn"
+            android:label="IRNet VPN"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+        <!-- The notification's "Exit IRNet" and "Disconnect" buttons. -->
+        <receiver
+            android:name=".NotificationActionReceiver"
+            android:exported="false" />
         <!-- Shares exported quality reports (see ShareHandler). -->
         <provider
             android:name=".ExportFileProvider"
