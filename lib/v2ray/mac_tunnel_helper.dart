@@ -54,12 +54,29 @@ class MacTunnelHelper {
   /// scripts' hash and the bundled core's.
   static Future<String> expectedVersion(String xrayPath) async {
     if (_xrayHash == null || _xrayHashPath != xrayPath) {
-      _xrayHash = await compute(_hashFile, xrayPath);
+      _xrayHash = await _coreHash(xrayPath);
       _xrayHashPath = xrayPath;
     }
     final scripts = sha256.convert(utf8.encode(helperScript + validatorScript)).toString();
     return 'helper=$scripts xray=$_xrayHash';
   }
+
+  /// The core's code signature hash (CDHash): it changes with the code, but
+  /// not when a build merely re-signs the same core. A developer-certificate
+  /// signature carries its signing time, so the file's own hash differs on
+  /// every build and would ask for the password after each update.
+  static Future<String> _coreHash(String path) async {
+    try {
+      final r = await Process.run('/usr/bin/codesign', ['-d', '--verbose=4', path]);
+      final cd = cdHashIn('${r.stderr}\n${r.stdout}');
+      if (cd != null) return 'cd:$cd';
+    } catch (_) {}
+    return compute(_hashFile, path);
+  }
+
+  @visibleForTesting
+  static String? cdHashIn(String codesignOutput) =>
+      RegExp(r'^CDHash=([0-9a-f]{40,64})\s*$', multiLine: true).firstMatch(codesignOutput)?.group(1);
 
   static Future<String> _hashFile(String path) async => (await sha256.bind(File(path).openRead()).first).toString();
 

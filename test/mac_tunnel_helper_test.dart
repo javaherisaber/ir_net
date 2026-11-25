@@ -20,6 +20,16 @@ Future<void> _until(bool Function() done, {Duration timeout = const Duration(sec
 }
 
 void main() {
+  test('the core is identified by its code hash, which re-signing keeps', () {
+    const out = 'Executable=/Applications/IRNet.app/Contents/MacOS/xray\n'
+        'Hash type=sha256 size=32\n'
+        'CandidateCDHash sha256=578b9cc4ea0685ca716922f7479b5c8eef51ea97\n'
+        'CDHash=578b9cc4ea0685ca716922f7479b5c8eef51ea97\n'
+        'Signed Time=Nov 24, 2026 at 18:00:58\n';
+    expect(MacTunnelHelper.cdHashIn(out), '578b9cc4ea0685ca716922f7479b5c8eef51ea97');
+    expect(MacTunnelHelper.cdHashIn('code object is not signed at all'), isNull);
+  });
+
   late Directory root;
   late String helper;
   late File calls;
