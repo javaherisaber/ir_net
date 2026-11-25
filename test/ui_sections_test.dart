@@ -23,6 +23,7 @@ import 'package:ir_net/main.dart';
 import 'package:ir_net/quality_bloc.dart';
 import 'package:ir_net/ui/call_widgets.dart';
 import 'package:ir_net/ui/charts.dart';
+import 'package:ir_net/ui/connection_widgets.dart';
 import 'package:ir_net/ui/export_widgets.dart';
 import 'package:ir_net/ui/nav_shell.dart';
 import 'package:ir_net/ui/quality_widgets.dart';
@@ -607,6 +608,13 @@ void main() {
     expect(find.byType(QualitySummaryCard), findsOneWidget);
     expect(find.textContaining('Top app: Google Chrome'), findsOneWidget);
     await _shot(tester, 'overview_desktop');
+
+    // The whole "Connected from" tile opens the Connection section.
+    await tester.tap(find.text('CONNECTED FROM'));
+    await settle(tester);
+    expect(find.byType(IpDnsCard), findsOneWidget);
+    await tester.tap(find.text('Overview').first);
+    await settle(tester);
 
     // Phone-width quality section (mobile tab) and a narrow usage section.
     tester.view.physicalSize = const Size(390, 2300);

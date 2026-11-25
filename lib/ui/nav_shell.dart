@@ -71,6 +71,7 @@ class _DesktopShellState extends State<_DesktopShell> {
     switch (index) {
       case 0:
         return OverviewSection(
+          onOpenConnection: () => _select(3),
           onOpenVpn: () => _select(1),
           onOpenLeaks: () => _select(2),
           onOpenBalance: () => _select(4),

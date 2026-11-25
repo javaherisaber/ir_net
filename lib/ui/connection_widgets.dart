@@ -150,8 +150,7 @@ class ConnectionHeroCard extends StatelessWidget {
       stream: bloc.ipLookupResult,
       builder: (context, snapshot) {
         final info = ConnectionInfo.fromJson(snapshot.data);
-        final state = vpnStateOf(info);
-        return compact ? _compact(info, state) : _wide(info, state);
+        return compact ? _compact(info) : _wide(info);
       },
     );
   }
@@ -174,12 +173,13 @@ class ConnectionHeroCard extends StatelessWidget {
     );
   }
 
-  Widget _wide(ConnectionInfo info, VpnState state) {
+  Widget _wide(ConnectionInfo info) {
     final detail =
         [info.city, info.region, info.isp].whereType<String>().where((e) => e.isNotEmpty).join(' · ');
     return AppCard(
       gradient: AppGradients.card,
       padding: const EdgeInsets.all(22),
+      onTap: onDetails,
       child: Row(
         children: [
           CountryFlagTile(
@@ -206,25 +206,32 @@ class ConnectionHeroCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 16),
-          VpnPill(state),
+          _IpDnsSummary(ip: info.ip),
+          if (onDetails != null) ...[
+            const SizedBox(width: 10),
+            const Icon(Icons.chevron_right, size: 20, color: AppColors.text3),
+          ],
         ],
       ),
     );
   }
 
-  Widget _compact(ConnectionInfo info, VpnState state) {
+  Widget _compact(ConnectionInfo info) {
     return AppCard(
       gradient: AppGradients.card,
       radius: 18,
       padding: const EdgeInsets.all(16),
+      onTap: onDetails,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CountryFlagTile(countryCode: info.countryCode, size: 42, iconSize: 22),
-              VpnPill(state),
+              const SizedBox(width: 12),
+              Flexible(child: _IpDnsSummary(ip: info.ip)),
             ],
           ),
           const SizedBox(height: 14),
@@ -251,21 +258,67 @@ class ConnectionHeroCard extends StatelessWidget {
                   Text(info.isp ?? '—', style: AppText.mono(13, FontWeight.w500, AppColors.text)),
                 ],
               ),
+              // The whole card opens the details; this just says so.
               if (onDetails != null)
-                GestureDetector(
-                  onTap: onDetails,
-                  behavior: HitTestBehavior.opaque,
-                  child: Row(
-                    children: [
-                      Text('Details', style: AppText.ui(12, FontWeight.w500, AppColors.text3)),
-                      const Icon(Icons.chevron_right, size: 16, color: AppColors.text3),
-                    ],
-                  ),
+                Row(
+                  children: [
+                    Text('Details', style: AppText.ui(12, FontWeight.w500, AppColors.text3)),
+                    const Icon(Icons.chevron_right, size: 16, color: AppColors.text3),
+                  ],
                 ),
             ],
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Public IP and DNS servers, right-aligned, for the "Connected from" tile.
+/// Every DNS server gets its own line; iOS has none to show.
+class _IpDnsSummary extends StatelessWidget {
+  const _IpDnsSummary({required this.ip});
+  final String? ip;
+
+  @override
+  Widget build(BuildContext context) {
+    final showDns = !kIsWeb && !Platform.isIOS;
+    return StreamBuilder<LocalNetworksResult>(
+      stream: bloc.localNetwork,
+      builder: (context, snapshot) {
+        final dns = snapshot.data?.dns.where((e) => e.isNotEmpty).toList() ?? const <String>[];
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _row('Public IP', [ip ?? '—']),
+            if (showDns) ...[
+              const SizedBox(height: 8),
+              _row('DNS', dns.isEmpty ? const ['—'] : dns),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _row(String label, List<String> values) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(padding: const EdgeInsets.only(top: 3), child: Overline(label)),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              for (final v in values)
+                Text(v, style: AppText.mono(13, FontWeight.w500, AppColors.text), textAlign: TextAlign.right),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -378,7 +431,7 @@ class IpDnsCard extends StatelessWidget {
                   _header(),
                   _kv('Public IP', info.ip ?? '—'),
                   if (net != null) ...[
-                    _kv('DNS servers', _dnsText(net.dns)),
+                    _kvLines('DNS servers', _dnsLines(net.dns)),
                     _localIps(net.interfaces),
                   ] else
                     _note(kIsWeb
@@ -410,10 +463,38 @@ class IpDnsCard extends StatelessWidget {
     );
   }
 
-  static String _dnsText(List<String> dns) {
+  static List<String> _dnsLines(List<String> dns) {
     final servers = dns.where((e) => e.isNotEmpty).toList();
-    if (servers.isNotEmpty) return servers.join(', ');
-    return !kIsWeb && Platform.isIOS ? 'Not available on iOS' : '—';
+    if (servers.isNotEmpty) return servers;
+    return [!kIsWeb && Platform.isIOS ? 'Not available on iOS' : '—'];
+  }
+
+  /// A label with one value per line, each shown in full.
+  Widget _kvLines(String label, List<String> values) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.line))),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: AppText.ui(12, FontWeight.w500, AppColors.text3)),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                for (var i = 0; i < values.length; i++)
+                  Padding(
+                    padding: EdgeInsets.only(top: i == 0 ? 0 : 6),
+                    child: Text(values[i],
+                        style: AppText.mono(13, FontWeight.w500, AppColors.text), textAlign: TextAlign.right),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _kv(String label, String value, {bool last = false}) {
