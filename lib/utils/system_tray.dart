@@ -5,6 +5,7 @@ import 'package:ir_net/data/shared_preferences.dart';
 import 'package:ir_net/utils/flag_tray_icon.dart';
 import 'package:ir_net/utils/platform.dart';
 import 'package:system_tray/system_tray.dart';
+import 'package:window_manager/window_manager.dart';
 
 mixin AppSystemTray {
   // The tray plugin only exists on desktops: creating AppWindow already calls
@@ -63,6 +64,28 @@ mixin AppSystemTray {
     _systemTray?.destroy();
   }
 
+  /// Brings IRNet's window to the front. On macOS the tray plugin looks the
+  /// window up once, at start-up, often before it exists, so its "show"
+  /// did nothing; window_manager (which also hides it on close) always has
+  /// the window.
+  Future<void> _showWindow() async {
+    if (Platform.isMacOS) {
+      if (await windowManager.isMinimized()) await windowManager.restore();
+      await windowManager.show();
+      await windowManager.focus();
+    } else {
+      _appWindow?.show();
+    }
+  }
+
+  Future<void> _hideWindow() async {
+    if (Platform.isMacOS) {
+      await windowManager.hide();
+    } else {
+      _appWindow?.hide();
+    }
+  }
+
   Future<void> initSystemTray() async {
     final systemTray = _systemTray;
     final appWindow = _appWindow;
@@ -75,8 +98,8 @@ mixin AppSystemTray {
     );
     final Menu menu = Menu();
     await menu.buildFrom([
-      MenuItemLabel(label: 'Show', onClicked: (menuItem) => appWindow.show()),
-      MenuItemLabel(label: 'Hide', onClicked: (menuItem) => appWindow.hide()),
+      MenuItemLabel(label: 'Show', onClicked: (menuItem) => _showWindow()),
+      MenuItemLabel(label: 'Hide', onClicked: (menuItem) => _hideWindow()),
       MenuItemLabel(
         label: 'Refresh',
         onClicked: (menuItem) {
@@ -93,7 +116,7 @@ mixin AppSystemTray {
     systemTray.registerSystemTrayEventHandler((eventName) {
       debugPrint("eventName: $eventName");
       if (eventName == kSystemTrayEventClick) {
-        appWindow.show();
+        _showWindow();
       } else if (eventName == kSystemTrayEventRightClick) {
         systemTray.popUpContextMenu();
       }
