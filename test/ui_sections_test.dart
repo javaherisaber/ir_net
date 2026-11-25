@@ -612,7 +612,7 @@ void main() {
     // The whole "Connected from" tile opens the Connection section.
     await tester.tap(find.text('CONNECTED FROM'));
     await settle(tester);
-    expect(find.byType(IpDnsCard), findsOneWidget);
+    expect(find.byType(ConnectionDetails), findsOneWidget);
     await tester.tap(find.text('Overview').first);
     await settle(tester);
 

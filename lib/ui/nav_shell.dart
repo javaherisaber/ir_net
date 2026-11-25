@@ -1,9 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:ir_net/main.dart';
 import 'package:ir_net/utils/app_info.dart';
 import 'package:ir_net/utils/platform.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'components.dart';
 import 'connection_widgets.dart';
@@ -11,6 +10,7 @@ import 'leak_widgets.dart';
 import 'sections.dart';
 import 'settings_widgets.dart';
 import 'theme.dart';
+import 'update_banner.dart';
 import 'vpn_widgets.dart';
 
 /// Top-level chrome: desktop gets a sidebar, mobile gets a bottom nav bar.
@@ -130,17 +130,21 @@ class _DesktopShellState extends State<_DesktopShell> {
         color: AppColors.panel,
         border: Border(right: BorderSide(color: AppColors.line)),
       ),
-      padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
+      padding: EdgeInsets.fromLTRB(12, PlatformUtils.hiddenTitleBar ? 0 : 16, 12, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 6, 8, 18),
-            child: BrandMark(version: AppInfo.version),
+          _moveWindow(
+            Padding(
+              // On macOS the window buttons sit above the brand.
+              padding: EdgeInsets.fromLTRB(8, PlatformUtils.hiddenTitleBar ? 42 : 6, 8, 18),
+              child: BrandMark(version: AppInfo.version),
+            ),
           ),
           for (var i = 0; i < _navItems.length; i++) _navTile(i),
           const Spacer(),
-          _statusPill(),
+          // A newer release on GitHub (nothing when up to date).
+          const UpdateBanner(),
           const SizedBox(height: 9),
           Row(
             children: [
@@ -202,37 +206,15 @@ class _DesktopShellState extends State<_DesktopShell> {
     );
   }
 
-  Widget _statusPill() {
-    return StreamBuilder(
-      stream: bloc.ipLookupResult,
-      builder: (context, snapshot) {
-        final state = vpnStateOf(ConnectionInfo.fromJson(snapshot.data));
-        final (word, dot) = switch (state) {
-          VpnState.protected => ('Protected', AppColors.good),
-          VpnState.exposed => ('Not protected', AppColors.bad),
-          VpnState.checking => ('Checking', AppColors.warn),
-        };
-        final platform = Platform.isWindows ? 'Windows' : (Platform.isMacOS ? 'macOS' : 'Linux');
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(11),
-            border: Border.all(color: AppColors.line),
-          ),
-          child: Row(
-            children: [
-              StatusDot(dot),
-              const SizedBox(width: 9),
-              Text('$word · $platform', style: AppText.ui(11, FontWeight.w500, AppColors.text2)),
-            ],
-          ),
-        );
-      },
-    );
-  }
+  /// Without a title bar (macOS), the top strip is what moves the window;
+  /// a double-click zooms it, as the title bar's would.
+  Widget _moveWindow(Widget child) => PlatformUtils.hiddenTitleBar ? DragToMoveArea(child: child) : child;
 
   Widget _header(_NavItem item) {
+    return _moveWindow(_headerBar(item));
+  }
+
+  Widget _headerBar(_NavItem item) {
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -374,6 +356,10 @@ class _MobileShellState extends State<_MobileShell> {
               IconActionButton(icon: Icons.logout, danger: true, onPressed: bloc.onExitClick),
             ],
           ),
+        ),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 4, 16, 4),
+          child: UpdateBanner(compact: true),
         ),
         Expanded(
           child: SingleChildScrollView(

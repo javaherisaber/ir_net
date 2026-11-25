@@ -49,6 +49,12 @@ class _SettingsViewState extends State<SettingsView> {
             badge: 'Windows & Linux',
           ),
           _launchAtStartup(),
+          _futureToggle(
+            title: 'Check for updates',
+            subtitle: 'Look for a newer IRNet on GitHub and show a banner when there is one',
+            value: AppSharedPreferences.checkForUpdates,
+            onChanged: bloc.setCheckForUpdates,
+          ),
           if (PlatformUtils.isDesktop)
             _futureToggle(
               title: 'Stop on sleep',

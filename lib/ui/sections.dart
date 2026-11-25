@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:ir_net/main.dart';
@@ -83,10 +81,6 @@ class OverviewSection extends StatelessWidget {
         ],
         SizedBox(height: gap),
         SpeedSummaryCard(onTap: onOpenSpeed),
-        if (!compact && Platform.isWindows) ...[
-          SizedBox(height: gap),
-          const IpDnsCard(),
-        ],
       ],
     );
   }
@@ -150,26 +144,7 @@ class ConnectionSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (compact) {
-      return const Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ConnectionHeroCard(compact: true),
-          SizedBox(height: 14),
-          LocationTableCard(),
-          SizedBox(height: 14),
-          IpDnsCard(),
-        ],
-      );
-    }
-    return const Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: LocationTableCard(withHeader: true)),
-        SizedBox(width: 14),
-        Expanded(child: IpDnsCard()),
-      ],
-    );
+    return ConnectionDetails(compact: compact);
   }
 }
 

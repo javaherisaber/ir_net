@@ -9,6 +9,12 @@ class MainFlutterWindow: NSWindow {
     let flutterViewController = FlutterViewController.init()
     let windowFrame = self.frame
     self.contentViewController = flutterViewController
+    // No title bar: the app's own sidebar and header run to the top edge, with
+    // the window buttons floating over the sidebar (the Dart side leaves them
+    // room and makes the top strip draggable).
+    self.titleVisibility = .hidden
+    self.titlebarAppearsTransparent = true
+    self.styleMask.insert(.fullSizeContentView)
     self.setFrame(windowFrame, display: true)
 
     RegisterGeneratedPlugins(registry: flutterViewController)

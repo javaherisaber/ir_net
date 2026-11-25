@@ -94,6 +94,24 @@ class AppSharedPreferences {
     (await _preference).setString(_keyLeakCheckList, previousChecklist.join(';'));
   }
 
+  /// Look for a newer IRNet release on GitHub (on by default).
+  static Future<bool> get checkForUpdates async {
+    return (await _preference).getBool(_keyCheckForUpdates) ?? true;
+  }
+
+  static Future<void> setCheckForUpdates(bool value) async {
+    (await _preference).setBool(_keyCheckForUpdates, value);
+  }
+
+  /// The release whose banner the user closed; it stays hidden until a newer one.
+  static Future<String?> get dismissedUpdate async {
+    return (await _preference).getString(_keyDismissedUpdate);
+  }
+
+  static Future<void> setDismissedUpdate(String version) async {
+    (await _preference).setString(_keyDismissedUpdate, version);
+  }
+
   /// Desktop: disconnect the VPN and pause IRNet's checks while the computer
   /// sleeps, then pick both back up on wake.
   static Future<bool> get stopOnSleep async {
@@ -170,6 +188,8 @@ class AppSharedPreferences {
   static const _keyKerioLowBalanceToastDate = 'kerioLowBalanceToastDate';
   static const _keyQualityMonitoring = 'qualityMonitoring';
   static const _keyStopOnSleep = 'stopOnSleep';
+  static const _keyCheckForUpdates = 'checkForUpdates';
+  static const _keyDismissedUpdate = 'dismissedUpdate';
   static const _keyQualityInterval = 'qualityInterval';
   static const _keyUsageTracking = 'usageTracking';
   static const _keyUsageLookups = 'usageLookups';

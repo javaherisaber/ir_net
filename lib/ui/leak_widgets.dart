@@ -136,13 +136,17 @@ class _LeakInputBarState extends State<LeakInputBar> {
 
 /// The monitored-sites list. [compact] = mobile (status under URL).
 class LeakList extends StatelessWidget {
-  const LeakList({super.key, this.compact = false});
+  const LeakList({super.key, this.compact = false, @visibleForTesting this.items});
   final bool compact;
+
+  /// Shown instead of the bloc's checklist (tests, screenshots).
+  final List<LeakItem>? items;
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<LeakItem>>(
-      stream: bloc.leakChecklist,
+      stream: items == null ? bloc.leakChecklist : Stream.value(items!),
+      initialData: items,
       builder: (context, snapshot) {
         final items = snapshot.data;
         if (items == null) return const SizedBox.shrink();
@@ -169,10 +173,21 @@ class LeakList extends StatelessWidget {
   }
 }
 
-class _LeakRow extends StatelessWidget {
+class _LeakRow extends StatefulWidget {
   const _LeakRow({required this.item, required this.compact});
   final LeakItem item;
   final bool compact;
+
+  @override
+  State<_LeakRow> createState() => _LeakRowState();
+}
+
+class _LeakRowState extends State<_LeakRow> {
+  /// The technical message under a failure's explanation.
+  bool _details = false;
+
+  LeakItem get item => widget.item;
+  bool get compact => widget.compact;
 
   @override
   Widget build(BuildContext context) {
@@ -190,11 +205,113 @@ class _LeakRow extends StatelessWidget {
             borderRadius: BorderRadius.circular(radius),
             border: Border.all(color: failed ? AppColors.badBorder : AppColors.line),
           ),
-          child: compact ? _compact() : _wide(),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(padding: const EdgeInsets.only(top: 1), child: _statusTile()),
+              SizedBox(width: compact ? 11 : 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.url,
+                        style: AppText.mono(compact ? 12.5 : 13, FontWeight.w500, AppColors.text, height: 1.4)),
+                    if (_outcome() case final outcome?) ...[
+                      const SizedBox(height: 5),
+                      outcome,
+                    ],
+                  ],
+                ),
+              ),
+              if (!compact) ...[
+                const SizedBox(width: 14),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(_statusLabel, style: AppText.ui(11, FontWeight.w500, _statusColor)),
+                ),
+              ],
+              const SizedBox(width: 12),
+              Padding(padding: const EdgeInsets.only(top: 3), child: _deleteButton()),
+            ],
+          ),
         ),
       ),
     );
   }
+
+  /// Under the URL: the failure explained, or the response time. On phones
+  /// it also carries the status, which wide rows show on the right.
+  Widget? _outcome() {
+    final failure = item.failure;
+    if (item.status == LeakStatus.failed && failure != null) return _reason(failure);
+    if (!compact) {
+      if (item.status != LeakStatus.passed || item.ms == null) return null;
+      return Text('Answered in ${item.ms} ms', style: AppText.ui(11, FontWeight.w400, AppColors.text3));
+    }
+    final text = switch (item.status) {
+      LeakStatus.passed => item.ms == null ? 'Reachable' : 'Reachable · ${item.ms} ms',
+      LeakStatus.failed => 'Unreachable · possible leak',
+      _ => 'Checking…',
+    };
+    return Text(text, style: AppText.ui(11, FontWeight.w400, _statusColor));
+  }
+
+  Widget _reason(LeakFailure failure) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(_reasonIcon(failure.kind), size: 14, color: AppColors.bad),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(failure.title, style: AppText.ui(12, FontWeight.w600, AppColors.bad)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 3),
+        Text(failure.explanation, style: AppText.ui(11.5, FontWeight.w400, AppColors.text2, height: 1.45)),
+        const SizedBox(height: 6),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => setState(() => _details = !_details),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_details ? 'Hide details' : 'Details', style: AppText.ui(11, FontWeight.w500, AppColors.text3)),
+              Icon(_details ? Icons.expand_less : Icons.expand_more, size: 15, color: AppColors.text3),
+            ],
+          ),
+        ),
+        if (_details) ...[
+          const SizedBox(height: 6),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+            decoration: BoxDecoration(
+              color: AppColors.bg,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.line2),
+            ),
+            child: SelectableText(failure.detail,
+                style: AppText.mono(10.5, FontWeight.w400, AppColors.text2, height: 1.4)),
+          ),
+        ],
+      ],
+    );
+  }
+
+  static IconData _reasonIcon(LeakFailureKind kind) => switch (kind) {
+        LeakFailureKind.timeout => Icons.hourglass_empty,
+        LeakFailureKind.dns => Icons.dns_outlined,
+        LeakFailureKind.reset => Icons.link_off,
+        LeakFailureKind.refused => Icons.block,
+        LeakFailureKind.network => Icons.wifi_off,
+        LeakFailureKind.tls => Icons.gpp_bad_outlined,
+        LeakFailureKind.filtered => Icons.report_outlined,
+        LeakFailureKind.blocked => Icons.public_off,
+        LeakFailureKind.http || LeakFailureKind.other => Icons.error_outline,
+      };
 
   Widget _statusTile() {
     switch (item.status) {
@@ -246,49 +363,6 @@ class _LeakRow extends StatelessWidget {
         padding: EdgeInsets.all(2),
         child: Icon(Icons.close, size: 16, color: AppColors.text3),
       ),
-    );
-  }
-
-  Widget _compact() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(padding: const EdgeInsets.only(top: 1), child: _statusTile()),
-        const SizedBox(width: 11),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(item.url,
-                  style: AppText.mono(12.5, FontWeight.w500, AppColors.text, height: 1.4)),
-              const SizedBox(height: 4),
-              Text(
-                item.status == LeakStatus.failed ? 'Unreachable · possible leak' : _statusLabel,
-                style: AppText.ui(10, FontWeight.w400, _statusColor),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        Padding(padding: const EdgeInsets.only(top: 3), child: _deleteButton()),
-      ],
-    );
-  }
-
-  Widget _wide() {
-    return Row(
-      children: [
-        _statusTile(),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Text(item.url,
-              style: AppText.mono(13, FontWeight.w500, AppColors.text, height: 1.4)),
-        ),
-        const SizedBox(width: 14),
-        Text(_statusLabel, style: AppText.ui(11, FontWeight.w500, _statusColor)),
-        const SizedBox(width: 14),
-        _deleteButton(),
-      ],
     );
   }
 }

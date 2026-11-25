@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:ir_net/main.dart';
 import 'package:ir_net/utils/cmd.dart';
 
@@ -323,172 +324,128 @@ class _IpDnsSummary extends StatelessWidget {
   }
 }
 
-/// Country / Region / City / ISP table.
-class LocationTableCard extends StatelessWidget {
-  const LocationTableCard({super.key, this.withHeader = false});
-  final bool withHeader;
+/// The Connection details screen: where you appear (with the public IP),
+/// the location facts, DNS servers and this device's local addresses. IPs
+/// and DNS servers copy on click. [compact] = phone layout (stacked).
+class ConnectionDetails extends StatelessWidget {
+  const ConnectionDetails({
+    super.key,
+    this.compact = false,
+    @visibleForTesting this.testLookup,
+    @visibleForTesting this.testNetwork,
+  });
+
+  final bool compact;
+
+  /// Used instead of the bloc's streams (tests, screenshots).
+  final Map<String, dynamic>? testLookup;
+  final LocalNetworksResult? testNetwork;
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
-      stream: bloc.ipLookupResult,
-      builder: (context, snapshot) {
-        final info = ConnectionInfo.fromJson(snapshot.data);
-        final rows = <(String, String?)>[
-          ('Country', info.country),
-          ('Region', info.region),
-          ('City', info.city),
-          ('ISP', info.isp),
-        ];
-        return AppCard(
-          padding: EdgeInsets.zero,
-          clip: true,
-          child: Column(
-            children: [
-              if (withHeader)
-                _row(
-                  const Padding(
-                    padding: EdgeInsets.only(right: 9),
-                    child: Icon(Icons.location_on_outlined, size: 15, color: AppColors.accent),
-                  ),
-                  'Location',
-                  null,
-                  isHeader: true,
-                  last: false,
-                ),
-              for (var i = 0; i < rows.length; i++)
-                _row(null, rows[i].$1, rows[i].$2, last: i == rows.length - 1),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _row(Widget? leading, String label, String? value,
-      {bool isHeader = false, bool last = false}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
-      decoration: BoxDecoration(
-        border: last ? null : const Border(bottom: BorderSide(color: AppColors.line)),
-      ),
-      child: isHeader
-          ? Row(
-              children: [
-                if (leading != null) leading,
-                Text(
-                  label.toUpperCase(),
-                  style: AppText.ui(12, FontWeight.w600, AppColors.text2, letterSpacing: 0.6),
-                ),
-              ],
-            )
-          : Row(
-              children: [
-                if (leading != null) leading,
-                // Fixed-width label column so every value starts at the same x.
-                SizedBox(
-                  width: 92,
-                  child: Text(
-                    label.toUpperCase(),
-                    style: AppText.ui(11, FontWeight.w500, AppColors.text3, letterSpacing: 0.6),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    value ?? '—',
-                    style: AppText.mono(13, FontWeight.w500,
-                        value == null ? AppColors.text3 : AppColors.text),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-    );
-  }
-}
-
-/// Public IP + DNS servers + local interfaces (`bloc.localNetwork`, read on
-/// every platform; iOS has no DNS servers to show).
-class IpDnsCard extends StatelessWidget {
-  const IpDnsCard({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder(
-      stream: bloc.ipLookupResult,
+      stream: testLookup == null ? bloc.ipLookupResult : Stream.value(testLookup),
+      initialData: testLookup,
       builder: (context, ipSnap) {
         final info = ConnectionInfo.fromJson(ipSnap.data);
         return StreamBuilder<LocalNetworksResult>(
-          stream: bloc.localNetwork,
+          stream: testNetwork == null ? bloc.localNetwork : Stream.value(testNetwork!),
+          initialData: testNetwork,
           builder: (context, netSnap) {
             final net = netSnap.data;
-            return AppCard(
-              padding: EdgeInsets.zero,
-              clip: true,
-              child: Column(
-                children: [
-                  _header(),
-                  _kv('Public IP', info.ip ?? '—'),
-                  if (net != null) ...[
-                    _kvLines('DNS servers', _dnsLines(net.dns)),
-                    _localIps(net.interfaces),
-                  ] else
-                    _note(kIsWeb
-                        ? 'DNS servers & local interfaces aren\'t available in the browser.'
-                        : 'Reading DNS servers & local interfaces…'),
-                ],
-              ),
+            final address = _AddressCard(info: info, compact: compact);
+            final location = _LocationCard(info: info);
+            final dns = _DnsCard(net: net);
+            final local = _LocalNetworkCard(net: net);
+            const gap = SizedBox(height: 14);
+            if (compact) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [address, gap, location, gap, dns, gap, local],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                address,
+                gap,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: location),
+                    const SizedBox(width: 14),
+                    Expanded(child: Column(children: [dns, gap, local])),
+                  ],
+                ),
+              ],
             );
           },
         );
       },
     );
   }
+}
 
-  Widget _header() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.line)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.dns_outlined, size: 15, color: AppColors.accent),
-          const SizedBox(width: 9),
-          Text('IP & DNS',
-              style: AppText.ui(12, FontWeight.w600, AppColors.text2, letterSpacing: 0.6)),
-        ],
-      ),
-    );
-  }
+/// Copies [value] and says so.
+Future<void> copyToClipboard(BuildContext context, String value) async {
+  await Clipboard.setData(ClipboardData(text: value));
+  if (!context.mounted) return;
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  messenger?.hideCurrentSnackBar();
+  messenger?.showSnackBar(SnackBar(
+    content: Row(
+      children: [
+        const Icon(Icons.check_circle_outline, size: 16, color: AppColors.good),
+        const SizedBox(width: 9),
+        Flexible(
+          child: Text.rich(
+            TextSpan(children: [
+              const TextSpan(text: 'Copied '),
+              TextSpan(text: value, style: AppText.mono(12.5, FontWeight.w600, AppColors.text)),
+            ]),
+            style: AppText.ui(12.5, FontWeight.w500, AppColors.text),
+          ),
+        ),
+      ],
+    ),
+    duration: const Duration(seconds: 2),
+    backgroundColor: AppColors.card2,
+    behavior: SnackBarBehavior.floating,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(11),
+      side: const BorderSide(color: AppColors.line2),
+    ),
+  ));
+}
 
-  static List<String> _dnsLines(List<String> dns) {
-    final servers = dns.where((e) => e.isNotEmpty).toList();
-    if (servers.isNotEmpty) return servers;
-    return [!kIsWeb && Platform.isIOS ? 'Not available on iOS' : '—'];
-  }
+/// A card's title row: icon, title and an optional one-line caption.
+class _CardTitle extends StatelessWidget {
+  const _CardTitle(this.icon, this.title, {this.caption});
+  final IconData icon;
+  final String title;
+  final String? caption;
 
-  /// A label with one value per line, each shown in full.
-  Widget _kvLines(String label, List<String> values) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.line))),
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: AppText.ui(12, FontWeight.w500, AppColors.text3)),
-          const SizedBox(width: 16),
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(icon, size: 16, color: AppColors.accent),
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (var i = 0; i < values.length; i++)
-                  Padding(
-                    padding: EdgeInsets.only(top: i == 0 ? 0 : 6),
-                    child: Text(values[i],
-                        style: AppText.mono(13, FontWeight.w500, AppColors.text), textAlign: TextAlign.right),
-                  ),
+                Text(title, style: AppText.ui(14, FontWeight.w600, AppColors.text)),
+                if (caption != null) ...[
+                  const SizedBox(height: 2),
+                  Text(caption!, style: AppText.ui(11.5, FontWeight.w400, AppColors.text3, height: 1.35)),
+                ],
               ],
             ),
           ),
@@ -496,75 +453,369 @@ class IpDnsCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _kv(String label, String value, {bool last = false}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      decoration: BoxDecoration(
-        border: last ? null : const Border(bottom: BorderSide(color: AppColors.line)),
-      ),
+/// One line of a details card. With [copy], the whole line copies that
+/// value on click and shows a copy icon, brighter on hover.
+class _DetailRow extends StatefulWidget {
+  const _DetailRow({this.leading, required this.title, this.subtitle, this.value, this.copy, this.mono = false});
+  final Widget? leading;
+  final String title;
+  final String? subtitle;
+  final String? value;
+  final String? copy;
+  final bool mono;
+
+  @override
+  State<_DetailRow> createState() => _DetailRowState();
+}
+
+class _DetailRowState extends State<_DetailRow> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final w = widget;
+    final value = w.value;
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
       child: Row(
         children: [
-          Text(label, style: AppText.ui(12, FontWeight.w500, AppColors.text3)),
-          const Spacer(),
-          Flexible(
-            child: Text(value,
-                style: AppText.mono(13, FontWeight.w500, AppColors.text),
-                textAlign: TextAlign.right,
-                overflow: TextOverflow.ellipsis),
+          if (w.leading != null) ...[w.leading!, const SizedBox(width: 12)],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(w.title,
+                    style: AppText.ui(value == null ? 13 : 12, value == null ? FontWeight.w500 : FontWeight.w400,
+                        value == null ? AppColors.text : AppColors.text3)),
+                if (w.subtitle != null) ...[
+                  const SizedBox(height: 1),
+                  Text(w.subtitle!, style: AppText.mono(10.5, FontWeight.w400, AppColors.text3)),
+                ],
+              ],
+            ),
           ),
+          if (value != null) ...[
+            const SizedBox(width: 12),
+            // Right-aligned, so values (and copy icons) line up at the edge.
+            Expanded(
+              flex: 2,
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                style: w.mono
+                    ? AppText.mono(13, FontWeight.w500, AppColors.text)
+                    : AppText.ui(13, FontWeight.w500, AppColors.text),
+              ),
+            ),
+          ],
+          if (w.copy != null) ...[
+            const SizedBox(width: 10),
+            Icon(Icons.copy_rounded, size: 14, color: _hover ? AppColors.accent : AppColors.text3),
+          ],
         ],
       ),
     );
+    if (w.copy == null) return row;
+    return Tooltip(
+      message: 'Copy ${w.copy}',
+      waitDuration: const Duration(milliseconds: 600),
+      child: InkWell(
+        onTap: () => copyToClipboard(context, w.copy!),
+        onHover: (h) => setState(() => _hover = h),
+        hoverColor: AppColors.card2,
+        child: row,
+      ),
+    );
   }
+}
 
-  Widget _localIps(List<NetworkInterface> interfaces) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Local IP addresses', style: AppText.ui(12, FontWeight.w500, AppColors.text3)),
-          const SizedBox(height: 9),
-          if (interfaces.isEmpty)
-            Text('—', style: AppText.mono(12, FontWeight.w500, AppColors.text))
-          else
-            for (final inf in interfaces)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 7),
-                child: Row(
+const _divider = Divider(height: 1, thickness: 1, indent: 18, endIndent: 18, color: AppColors.line);
+
+/// Where you appear: flag, country, place and ISP, with the public IP.
+class _AddressCard extends StatelessWidget {
+  const _AddressCard({required this.info, required this.compact});
+  final ConnectionInfo info;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final place = [info.city, info.region].whereType<String>().where((e) => e.isNotEmpty).join(', ');
+    final who = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Overline('You appear in'),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Flexible(
+              child: Text(info.country ?? 'Detecting…',
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.ui(compact ? 21 : 24, FontWeight.w700, AppColors.text, height: 1)),
+            ),
+            if (info.countryCode != null) ...[const SizedBox(width: 8), CodeBadge(info.countryCode!)],
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(place.isEmpty ? 'Resolving location…' : place,
+            style: AppText.ui(13, FontWeight.w400, AppColors.text2)),
+        if (info.isp != null) ...[
+          const SizedBox(height: 2),
+          Text(info.isp!, style: AppText.ui(12, FontWeight.w400, AppColors.text3)),
+        ],
+      ],
+    );
+    final ip = _PublicIp(ip: info.ip, state: vpnStateOf(info), compact: compact);
+    return AppCard(
+      gradient: AppGradients.card,
+      radius: compact ? 18 : 16,
+      padding: EdgeInsets.all(compact ? 16 : 22),
+      child: compact
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(inf.ipv4, style: AppText.mono(12, FontWeight.w500, AppColors.text)),
-                    const Spacer(),
-                    Flexible(
-                      child: Text(inf.interfaceName,
-                          style: AppText.ui(11, FontWeight.w400, AppColors.text3),
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.right),
-                    ),
+                    CountryFlagTile(countryCode: info.countryCode, size: 42, iconSize: 22),
+                    const SizedBox(width: 14),
+                    Expanded(child: who),
                   ],
                 ),
+                const SizedBox(height: 14),
+                Container(height: 1, color: AppColors.line),
+                const SizedBox(height: 12),
+                ip,
+              ],
+            )
+          : Row(
+              children: [
+                CountryFlagTile(countryCode: info.countryCode, size: 56, iconSize: 28, radius: 16),
+                const SizedBox(width: 20),
+                Expanded(child: who),
+                const SizedBox(width: 20),
+                ip,
+              ],
+            ),
+    );
+  }
+}
+
+/// The public IP, large, copied on click; with the VPN's state.
+class _PublicIp extends StatefulWidget {
+  const _PublicIp({required this.ip, required this.state, required this.compact});
+  final String? ip;
+  final VpnState state;
+  final bool compact;
+
+  @override
+  State<_PublicIp> createState() => _PublicIpState();
+}
+
+class _PublicIpState extends State<_PublicIp> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final ip = widget.ip;
+    final value = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(ip ?? '—', style: AppText.mono(widget.compact ? 18 : 20, FontWeight.w700, AppColors.text)),
+        if (ip != null) ...[
+          const SizedBox(width: 8),
+          Icon(Icons.copy_rounded, size: 15, color: _hover ? AppColors.accent : AppColors.text3),
+        ],
+      ],
+    );
+    final tappable = ip == null
+        ? value
+        : Tooltip(
+            message: 'Copy $ip',
+            waitDuration: const Duration(milliseconds: 600),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => copyToClipboard(context, ip),
+              onHover: (h) => setState(() => _hover = h),
+              hoverColor: AppColors.card2,
+              child: Padding(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3), child: value),
+            ),
+          );
+    if (widget.compact) {
+      return Row(
+        children: [
+          const Overline('Public IP'),
+          const SizedBox(width: 10),
+          Expanded(child: Align(alignment: Alignment.centerLeft, child: tappable)),
+          VpnPill(widget.state),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        const Padding(padding: EdgeInsets.only(right: 6), child: Overline('Public IP')),
+        const SizedBox(height: 4),
+        tappable,
+        const SizedBox(height: 8),
+        Padding(padding: const EdgeInsets.only(right: 6), child: VpnPill(widget.state)),
+      ],
+    );
+  }
+}
+
+class _LocationCard extends StatelessWidget {
+  const _LocationCard({required this.info});
+  final ConnectionInfo info;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Widget>[
+      _DetailRow(
+        title: 'Country',
+        value: info.country ?? '—',
+        leading: CountryFlagTile(countryCode: info.countryCode, size: 16, width: 22, iconSize: 14, radius: 3),
+      ),
+      _DetailRow(title: 'Region', value: info.region ?? '—', leading: _rowIcon(Icons.map_outlined)),
+      _DetailRow(title: 'City', value: info.city ?? '—', leading: _rowIcon(Icons.location_city_outlined)),
+      _DetailRow(title: 'Network', value: info.isp ?? '—', leading: _rowIcon(Icons.business_outlined)),
+    ];
+    return AppCard(
+      padding: EdgeInsets.zero,
+      clip: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _CardTitle(Icons.location_on_outlined, 'Location',
+              caption: 'Where sites see you, from your public IP'),
+          for (var i = 0; i < rows.length; i++) ...[if (i > 0) _divider, rows[i]],
+          const SizedBox(height: 6),
+        ],
+      ),
+    );
+  }
+}
+
+Widget _rowIcon(IconData icon) => SizedBox(width: 22, child: Icon(icon, size: 16, color: AppColors.text3));
+
+/// "1", "2": a DNS server's place in the lookup order.
+Widget _orderBadge(int n) => Container(
+      width: 22,
+      height: 22,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppColors.line2),
+      ),
+      child: Text('$n', style: AppText.mono(11, FontWeight.w600, AppColors.text3)),
+    );
+
+class _DnsCard extends StatelessWidget {
+  const _DnsCard({required this.net});
+  final LocalNetworksResult? net;
+
+  @override
+  Widget build(BuildContext context) {
+    final servers = net?.dns.where((e) => e.isNotEmpty).toList() ?? const <String>[];
+    final String? empty;
+    if (kIsWeb) {
+      empty = 'Not available in the browser';
+    } else if (Platform.isIOS) {
+      empty = 'iOS doesn\'t share its DNS servers with apps';
+    } else if (net == null) {
+      empty = 'Reading…';
+    } else if (servers.isEmpty) {
+      empty = 'None found';
+    } else {
+      empty = null;
+    }
+    return AppCard(
+      padding: EdgeInsets.zero,
+      clip: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _CardTitle(Icons.dns_outlined, 'DNS servers', caption: 'Turn site names into addresses for this device'),
+          if (empty != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(44, 0, 18, 14),
+              child: Text(empty, style: AppText.ui(12, FontWeight.w400, AppColors.text3)),
+            )
+          else
+            for (var i = 0; i < servers.length; i++) ...[
+              if (i > 0) _divider,
+              _DetailRow(
+                title: i == 0 ? 'Primary' : (i == 1 ? 'Secondary' : 'Server ${i + 1}'),
+                value: servers[i],
+                copy: servers[i].replaceAll(' (Private DNS)', ''),
+                mono: true,
+                leading: _orderBadge(i + 1),
               ),
+            ],
+          if (empty == null) const SizedBox(height: 6),
+        ],
+      ),
+    );
+  }
+}
+
+class _LocalNetworkCard extends StatelessWidget {
+  const _LocalNetworkCard({required this.net});
+  final LocalNetworksResult? net;
+
+  @override
+  Widget build(BuildContext context) {
+    final interfaces = net?.interfaces ?? const <NetworkInterface>[];
+    return AppCard(
+      padding: EdgeInsets.zero,
+      clip: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _CardTitle(Icons.lan_outlined, 'Local network',
+              caption: 'This device\'s address on each network, for sharing on the same network'),
+          if (interfaces.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(44, 0, 18, 14),
+              child: Text(kIsWeb ? 'Not available in the browser' : (net == null ? 'Reading…' : 'No network'),
+                  style: AppText.ui(12, FontWeight.w400, AppColors.text3)),
+            )
+          else ...[
+            for (var i = 0; i < interfaces.length; i++) ...[
+              if (i > 0) _divider,
+              _interfaceRow(interfaces[i]),
+            ],
+            const SizedBox(height: 6),
+          ],
         ],
       ),
     );
   }
 
-  Widget _note(String text) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.info_outline, size: 15, color: AppColors.text3),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(text,
-                style: AppText.ui(11, FontWeight.w400, AppColors.text3, height: 1.45)),
-          ),
-        ],
-      ),
+  /// "Wi-Fi (en0)" → "Wi-Fi" over "en0".
+  static Widget _interfaceRow(NetworkInterface inf) {
+    final m = RegExp(r'^(.*) \(([^)]+)\)$').firstMatch(inf.interfaceName);
+    final name = m?.group(1) ?? inf.interfaceName;
+    final device = m?.group(2);
+    return _DetailRow(
+      leading: IconTile(icon: _interfaceIcon(inf.interfaceName), size: 30, iconSize: 16, radius: 9),
+      title: name,
+      subtitle: device,
+      value: inf.ipv4,
+      copy: inf.ipv4,
+      mono: true,
     );
+  }
+
+  static IconData _interfaceIcon(String label) {
+    final l = label.toLowerCase();
+    if (l.contains('vpn') || l.contains('tunnel') || l.contains('irnet')) return Icons.vpn_lock_outlined;
+    if (l.contains('wi-fi') || l.contains('wifi') || l.contains('wlan') || l.contains('wireless')) return Icons.wifi;
+    if (l.contains('mobile') || l.contains('cellular')) return Icons.signal_cellular_alt;
+    if (l.contains('hotspot')) return Icons.wifi_tethering;
+    if (l.contains('ethernet') || l.contains('lan') || l.contains('thunderbolt')) return Icons.settings_ethernet;
+    return Icons.lan_outlined;
   }
 }
 

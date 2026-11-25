@@ -12,7 +12,11 @@ import 'package:ir_net/data/kerio.dart';
 import 'package:ir_net/data/leak_item.dart';
 import 'package:ir_net/data/shared_preferences.dart';
 import 'package:ir_net/utils/cmd.dart';
+import 'package:ir_net/utils/leak_checker.dart';
 import 'package:ir_net/utils/local_network.dart';
+import 'package:ir_net/utils/update_checker.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:ir_net/utils/app_info.dart';
 import 'package:ir_net/utils/http.dart';
 import 'package:ir_net/utils/system_tray.dart';
 import 'package:latlng/latlng.dart';
@@ -113,6 +117,7 @@ class AppBloc with AppSystemTray {
     quality.initialize();
     usage.initialize();
     v2ray.initialize();
+    _startUpdateChecks();
   }
 
   /// Re-checks IP, leaks and ping right after the VPN connects or drops.
@@ -240,21 +245,18 @@ class AppBloc with AppSystemTray {
     return IOClient(httpClient);
   }
 
+  final _leakChecker = LeakChecker();
+
   Future<void> _checkLeakedSite(LeakItem item) async {
     item.status = LeakStatus.loading;
     _replaceLeakItemInChecklist(item);
-    try {
-      final url = Uri.parse(item.url);
-      final response = await _client.head(url).timeout(const Duration(seconds: 10));
-      if (response.statusCode == 200) {
-        item.status = LeakStatus.passed;
-      } else {
-        item.status = LeakStatus.failed;
-      }
-      debugPrint('leak detection for $url => ${response.bodyBytes.length ~/ 1024} Kilobytes');
-    } on Exception catch (ex) {
-      item.status = LeakStatus.failed;
-      _checkNetworkRefuseException(ex);
+    final result = await _leakChecker.check(item.url, proxy: _effectiveProxy);
+    item.status = result.ok ? LeakStatus.passed : LeakStatus.failed;
+    item.ms = result.ms;
+    item.failure = result.failure;
+    // Windows: the system proxy IRNet was following has gone away.
+    if (result.failure?.detail.contains('The remote computer refused the network connection.') == true) {
+      _proxyServer = null;
     }
     if (item.status == LeakStatus.failed) {
       _foundALeakedSite = true;
@@ -380,6 +382,63 @@ class AppBloc with AppSystemTray {
   }
 
   final _localNetworkReader = LocalNetworkReader();
+
+  // ───────────────────────────── updates ─────────────────────────────
+
+  final _update = BehaviorSubject<UpdateInfo?>.seeded(null);
+
+  /// A newer IRNet release on GitHub, while there is one to show.
+  Stream<UpdateInfo?> get update => _update.stream;
+  Timer? _updateTimer;
+
+  void _startUpdateChecks() {
+    unawaited(Future.delayed(const Duration(seconds: 8), checkForUpdate));
+    _updateTimer?.cancel();
+    _updateTimer = Timer.periodic(const Duration(hours: 6), (_) => checkForUpdate());
+  }
+
+  /// Asks GitHub for the latest release (through the VPN's proxy when it's
+  /// on). A failed check keeps the last answer.
+  Future<void> checkForUpdate() async {
+    if (!await AppSharedPreferences.checkForUpdates) {
+      _update.value = null;
+      return;
+    }
+    if (AppInfo.version.isEmpty) return;
+    final client = _client;
+    try {
+      var info = await UpdateChecker(client: client).newerThan(AppInfo.version);
+      if (info != null && info.version == await AppSharedPreferences.dismissedUpdate) info = null;
+      _update.value = info;
+    } catch (e) {
+      debugPrint('Update check failed: $e');
+    } finally {
+      client.close();
+    }
+  }
+
+  /// Opens the release page, where the downloads are.
+  void openUpdate() {
+    final url = _update.valueOrNull?.url ?? UpdateChecker.releasesPage;
+    launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+
+  /// Hides the banner until a newer release than this one.
+  Future<void> dismissUpdate() async {
+    final info = _update.valueOrNull;
+    if (info == null) return;
+    await AppSharedPreferences.setDismissedUpdate(info.version);
+    _update.value = null;
+  }
+
+  Future<void> setCheckForUpdates(bool on) async {
+    await AppSharedPreferences.setCheckForUpdates(on);
+    if (on) {
+      await checkForUpdate();
+    } else {
+      _update.value = null;
+    }
+  }
 
   /// DNS servers and local interfaces (Connection section), every platform.
   Future<void> _refreshLocalNetwork() async {
