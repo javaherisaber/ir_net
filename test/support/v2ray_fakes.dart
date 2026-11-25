@@ -25,6 +25,9 @@ class FakeEngine implements VpnEngine {
   String? activeOutboundTag;
 
   @override
+  String? testInterface;
+
+  @override
   String? get unsupportedReason => null;
 
   @override

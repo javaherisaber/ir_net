@@ -508,7 +508,16 @@ class XrayConfigBuilder {
 
   /// One core instance that tests many configs at once: an HTTP inbound per
   /// config on its own port, each routed to that config's outbound.
-  static Map<String, dynamic> tester(List<({V2rayProfile profile, int port})> entries) {
+  /// [bindInterface]: in Tunnel mode, the physical interface the test
+  /// connections must leave by, or they'd go through the VPN first.
+  static Map<String, dynamic> tester(List<({V2rayProfile profile, int port})> entries, {String? bindInterface}) {
+    Map<String, dynamic> bound(Map<String, dynamic> out) {
+      if (bindInterface == null) return out;
+      final stream = (out['streamSettings'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+      stream['sockopt'] = {...?(stream['sockopt'] as Map<String, dynamic>?), 'interface': bindInterface};
+      return {...out, 'streamSettings': stream};
+    }
+
     return {
       'log': {'loglevel': 'warning'},
       'inbounds': [
@@ -522,7 +531,7 @@ class XrayConfigBuilder {
           },
       ],
       'outbounds': [
-        for (var i = 0; i < entries.length; i++) outbound(entries[i].profile, tag: 'out$i'),
+        for (var i = 0; i < entries.length; i++) bound(outbound(entries[i].profile, tag: 'out$i')),
         {'tag': 'direct', 'protocol': 'freedom'},
       ],
       'routing': {

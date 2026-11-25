@@ -11,6 +11,7 @@ import 'elevated_core.dart';
 import 'linux_tunnel_setup.dart';
 import 'mac_tunnel_helper.dart';
 import 'models.dart';
+import 'physical_interface.dart';
 import 'routing_rules.dart';
 import 'share_link.dart';
 import 'system_proxy.dart';
@@ -125,6 +126,11 @@ abstract class VpnEngine {
 
   /// In Auto: the outbound tag ("proxy-3") the core is using, when known.
   String? get activeOutboundTag;
+
+  /// Tunnel mode (desktop): the physical interface delay tests bind their
+  /// connections to, so they reach servers directly instead of through the
+  /// VPN. Null otherwise.
+  String? get testInterface;
 }
 
 class UnsupportedVpnEngine implements VpnEngine {
@@ -160,6 +166,9 @@ class UnsupportedVpnEngine implements VpnEngine {
 
   @override
   String? get activeOutboundTag => null;
+
+  @override
+  String? get testInterface => null;
 }
 
 // ───────────────────────────── Desktop ─────────────────────────────
@@ -182,6 +191,12 @@ class DesktopVpnEngine implements VpnEngine {
 
   /// The live connection's local HTTP inbound (health checks go through it).
   int? _httpPort;
+
+  /// Tunnel mode: the interface the default route used before the tunnel.
+  String? _tunnelInterface;
+
+  @override
+  String? get testInterface => _instance == null ? null : _tunnelInterface;
 
   static const preferredSocksPort = 10808;
   static const preferredHttpPort = 10809;
@@ -213,7 +228,11 @@ class DesktopVpnEngine implements VpnEngine {
   Future<EngineSession> connect(List<V2rayProfile> profiles, ConnectOptions options) async {
     if (_binary == null) throw const VpnException(XrayBinary.missingMessage);
     await disconnect();
-    if (options.mode == VpnMode.tunnel) return _connectTunnel(profiles, options);
+    if (options.mode == VpnMode.tunnel) {
+      // Read before the tunnel takes the default route over.
+      _tunnelInterface = await PhysicalInterface.find();
+      return _connectTunnel(profiles, options);
+    }
     final bypassLan = options.bypassLan;
     final rules = options.rules;
     final socks = await LocalPorts.pick(preferredSocksPort);
@@ -443,6 +462,7 @@ class DesktopVpnEngine implements VpnEngine {
   Future<void> disconnect() async {
     _stopping = true;
     _httpPort = null;
+    _tunnelInterface = null;
     try {
       await _restoreProxy();
       await _instance?.stop();
@@ -624,6 +644,10 @@ class AndroidVpnEngine implements VpnEngine {
 
   @override
   String? get activeOutboundTag => null;
+
+  /// IRNet is outside its own VPN on Android: tests already go direct.
+  @override
+  String? get testInterface => null;
 
   @override
   Future<EngineSession> connect(List<V2rayProfile> profiles, ConnectOptions options) async {

@@ -649,7 +649,7 @@ class V2rayBloc {
     if (value.testingAll && all) return;
     final ids = profiles.map((p) => p.id).toSet();
     _emit(value.copyWith(testing: {...value.testing, ...ids}, testingAll: all || value.testingAll));
-    final tester = DelayTester(runner: engine.testRunner);
+    final tester = DelayTester(runner: engine.testRunner, bindInterface: engine.testInterface);
     if (all) _tester = tester;
     try {
       await tester.run(profiles, (id, result) {
