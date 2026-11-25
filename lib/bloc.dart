@@ -12,6 +12,7 @@ import 'package:ir_net/data/kerio.dart';
 import 'package:ir_net/data/leak_item.dart';
 import 'package:ir_net/data/shared_preferences.dart';
 import 'package:ir_net/utils/cmd.dart';
+import 'package:ir_net/utils/local_network.dart';
 import 'package:ir_net/utils/http.dart';
 import 'package:ir_net/utils/system_tray.dart';
 import 'package:latlng/latlng.dart';
@@ -378,13 +379,21 @@ class AppBloc with AppSystemTray {
     }
   }
 
-  Future<void> _checkProxySettings() async {
-    if (Platform.isWindows == false) {
-      // todo: implement other platforms
-      return Future.value();
+  final _localNetworkReader = LocalNetworkReader();
+
+  /// DNS servers and local interfaces (Connection section), every platform.
+  Future<void> _refreshLocalNetwork() async {
+    try {
+      final result = await _localNetworkReader.read();
+      if (result != null) _localNetwork.value = result;
+    } catch (e) {
+      debugPrint('Local network info failed: $e');
     }
-    final localNetwork = await AppCmd.getLocalNetworkInfo();
-    _localNetwork.value = localNetwork;
+  }
+
+  Future<void> _checkProxySettings() async {
+    unawaited(_refreshLocalNetwork());
+    if (!Platform.isWindows) return;
     final proxyResult = await AppCmd.getProxySettings();
     if (proxyResult.proxyEnabled) {
       _proxyServer = proxyResult.proxyServer;

@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:ir_net/main.dart';
 import 'package:ir_net/utils/cmd.dart';
@@ -352,8 +355,8 @@ class LocationTableCard extends StatelessWidget {
   }
 }
 
-/// Public IP + DNS + local interfaces. DNS / local IPs come from
-/// `bloc.localNetwork`, which is only populated on Windows.
+/// Public IP + DNS servers + local interfaces (`bloc.localNetwork`, read on
+/// every platform; iOS has no DNS servers to show).
 class IpDnsCard extends StatelessWidget {
   const IpDnsCard({super.key});
 
@@ -375,10 +378,12 @@ class IpDnsCard extends StatelessWidget {
                   _header(),
                   _kv('Public IP', info.ip ?? '—'),
                   if (net != null) ...[
-                    _kv('DNS records', net.dns.where((e) => e.isNotEmpty).join(', ')),
+                    _kv('DNS servers', _dnsText(net.dns)),
                     _localIps(net.interfaces),
                   ] else
-                    _note('DNS records & local interfaces are available on Windows.'),
+                    _note(kIsWeb
+                        ? 'DNS servers & local interfaces aren\'t available in the browser.'
+                        : 'Reading DNS servers & local interfaces…'),
                 ],
               ),
             );
@@ -400,19 +405,15 @@ class IpDnsCard extends StatelessWidget {
           const SizedBox(width: 9),
           Text('IP & DNS',
               style: AppText.ui(12, FontWeight.w600, AppColors.text2, letterSpacing: 0.6)),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(5),
-              border: Border.all(color: AppColors.line2),
-            ),
-            child: Text('WINDOWS',
-                style: AppText.ui(8, FontWeight.w600, AppColors.text3, letterSpacing: 0.6)),
-          ),
         ],
       ),
     );
+  }
+
+  static String _dnsText(List<String> dns) {
+    final servers = dns.where((e) => e.isNotEmpty).toList();
+    if (servers.isNotEmpty) return servers.join(', ');
+    return !kIsWeb && Platform.isIOS ? 'Not available on iOS' : '—';
   }
 
   Widget _kv(String label, String value, {bool last = false}) {

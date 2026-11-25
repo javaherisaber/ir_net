@@ -76,6 +76,18 @@ class MainActivity : FlutterActivity() {
                     )
                     result.success(null)
                 }
+                // DNS servers of the active network, for the Connection
+                // section; Private DNS shows by its host name.
+                "dnsServers" -> {
+                    val cm = getSystemService(android.net.ConnectivityManager::class.java)
+                    val lp = cm?.activeNetwork?.let { cm.getLinkProperties(it) }
+                    val servers = mutableListOf<String>()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && lp?.isPrivateDnsActive == true) {
+                        lp.privateDnsServerName?.let { servers.add("$it (Private DNS)") }
+                    }
+                    lp?.dnsServers?.mapNotNull { it.hostAddress }?.forEach { if (it !in servers) servers.add(it) }
+                    result.success(servers)
+                }
                 "exitApp" -> {
                     result.success(null)
                     AppExit.now(applicationContext)

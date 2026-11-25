@@ -158,7 +158,7 @@ class ConnectionSection extends StatelessWidget {
           SizedBox(height: 14),
           LocationTableCard(),
           SizedBox(height: 14),
-          InfoNote('Public IP, DNS records & local interfaces are available on the desktop apps.'),
+          IpDnsCard(),
         ],
       );
     }
