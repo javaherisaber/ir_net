@@ -173,7 +173,7 @@ class ConnectionSection extends StatelessWidget {
   }
 }
 
-/// Kerio balance + Kerio account.
+/// Kerio control: balance + Kerio account.
 class BalanceSection extends StatelessWidget {
   const BalanceSection({super.key, this.compact = false});
   final bool compact;

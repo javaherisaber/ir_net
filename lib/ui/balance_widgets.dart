@@ -66,8 +66,7 @@ class BalanceHeroCard extends StatelessWidget {
                   else
                     Row(
                       children: [
-                        const Icon(Icons.account_balance_wallet_outlined,
-                            size: 18, color: AppColors.accent),
+                        const KerioIcon(size: 18, color: AppColors.accent),
                         const SizedBox(width: 9),
                         Text('Remaining data',
                             style: AppText.ui(13, FontWeight.w500, AppColors.text2)),
@@ -124,7 +123,7 @@ class BalanceHeroCard extends StatelessWidget {
                 children: [
                   const Icon(Icons.dns_outlined, size: 14, color: AppColors.text3),
                   const SizedBox(width: 9),
-                  Text('Kerio Connect · ${snapshot.data ?? '—'}',
+                  Text('Kerio Control · ${snapshot.data ?? '—'}',
                       style: AppText.mono(12, FontWeight.w500, AppColors.text3)),
                 ],
               ),
@@ -154,10 +153,9 @@ class BalanceSummaryCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.account_balance_wallet_outlined,
-                      size: 17, color: AppColors.accent),
+                  const KerioIcon(size: 17, color: AppColors.accent),
                   const SizedBox(width: 8),
-                  Text('Kerio balance', style: AppText.ui(13, FontWeight.w500, AppColors.text2)),
+                  Text('Kerio control', style: AppText.ui(13, FontWeight.w500, AppColors.text2)),
                 ],
               ),
               const SizedBox(height: 14),
@@ -178,7 +176,7 @@ class BalanceSummaryCard extends StatelessWidget {
               const SizedBox(height: 14),
               TrackBar(fraction: v.fraction),
               const SizedBox(height: 9),
-              Text('of ${v.totalText} · Kerio Connect',
+              Text('of ${v.totalText} · Kerio Control',
                   style: AppText.ui(11, FontWeight.w400, AppColors.text3)),
             ],
           ),

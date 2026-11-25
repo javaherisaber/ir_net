@@ -1,4 +1,4 @@
-// Verifies the Overview summary cards (Leak detection, Kerio balance, Network
+// Verifies the Overview summary cards (Leak detection, Kerio control, Network
 // quality, Speed test) act as shortcuts that invoke their "open section"
 // callbacks when tapped. The full app `main()` does platform-plugin init that
 // isn't available under flutter_test, so we exercise the card → callback

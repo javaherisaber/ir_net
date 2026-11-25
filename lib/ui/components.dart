@@ -497,3 +497,47 @@ class AppSwitch extends StatelessWidget {
     );
   }
 }
+
+/// Kerio Control's shield (the mark in assets/kerio.png), drawn as a line
+/// icon so it takes the size and color of the icons around it.
+class KerioIcon extends StatelessWidget {
+  const KerioIcon({super.key, this.size = 24, required this.color});
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(dimension: size, child: CustomPaint(painter: _KerioShieldPainter(color)));
+  }
+}
+
+class _KerioShieldPainter extends CustomPainter {
+  _KerioShieldPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.shortestSide / 24;
+    // The shield's outline on a 24-unit grid, traced from the 512 px mark:
+    // a pointed top that dips to the corners, sides curving to the point.
+    final path = Path()
+      ..moveTo(2.6 * s, 5.4 * s)
+      ..cubicTo(6.3 * s, 5.4 * s, 9.5 * s, 4.4 * s, 12 * s, 2.4 * s)
+      ..cubicTo(14.5 * s, 4.4 * s, 17.7 * s, 5.4 * s, 21.4 * s, 5.4 * s)
+      ..cubicTo(21.1 * s, 11.6 * s, 17.9 * s, 17.2 * s, 12 * s, 21.6 * s)
+      ..cubicTo(6.1 * s, 17.2 * s, 2.9 * s, 11.6 * s, 2.6 * s, 5.4 * s)
+      ..close();
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2 * s
+        ..strokeJoin = StrokeJoin.round
+        ..isAntiAlias = true,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_KerioShieldPainter old) => old.color != color;
+}

@@ -28,18 +28,25 @@ class AppShell extends StatelessWidget {
 }
 
 class _NavItem {
-  const _NavItem(this.title, this.icon, {this.showChip = true});
+  const _NavItem(this.title, this.icon, {this.showChip = true, this.custom});
   final String title;
-  final IconData icon;
+  final IconData? icon;
   final bool showChip;
+
+  /// An icon that isn't a font glyph (Kerio Control's shield).
+  final Widget Function(double size, Color color)? custom;
+
+  Widget iconWidget(double size, Color color) => custom?.call(size, color) ?? Icon(icon, size: size, color: color);
 }
+
+Widget _kerioIcon(double size, Color color) => KerioIcon(size: size, color: color);
 
 const _navItems = <_NavItem>[
   _NavItem('Overview', Icons.grid_view_rounded),
   _NavItem('VPN', Icons.vpn_lock_outlined),
   _NavItem('Leak detection', Icons.verified_user_outlined),
   _NavItem('Connection', Icons.public),
-  _NavItem('Kerio balance', Icons.account_balance_wallet_outlined),
+  _NavItem('Kerio control', null, custom: _kerioIcon),
   _NavItem('Speed test', Icons.speed),
   _NavItem('Network quality', Icons.network_check),
   _NavItem('Data usage', Icons.data_usage),
@@ -179,12 +186,12 @@ class _DesktopShellState extends State<_DesktopShell> {
             padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
             child: Row(
               children: [
-                Icon(item.icon, size: 18, color: active ? AppColors.accent : AppColors.text2),
+                item.iconWidget(18, active ? AppColors.accent : AppColors.text2),
                 const SizedBox(width: 12),
                 Text(
                   item.title,
-                  style: AppText.ui(13, active ? FontWeight.w600 : FontWeight.w500,
-                      active ? AppColors.accent : AppColors.text2),
+                  style: AppText.ui(
+                      13, active ? FontWeight.w600 : FontWeight.w500, active ? AppColors.accent : AppColors.text2),
                 ),
               ],
             ),
@@ -204,8 +211,7 @@ class _DesktopShellState extends State<_DesktopShell> {
           VpnState.exposed => ('Not protected', AppColors.bad),
           VpnState.checking => ('Checking', AppColors.warn),
         };
-        final platform =
-            Platform.isWindows ? 'Windows' : (Platform.isMacOS ? 'macOS' : 'Linux');
+        final platform = Platform.isWindows ? 'Windows' : (Platform.isMacOS ? 'macOS' : 'Linux');
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
           decoration: BoxDecoration(
@@ -217,8 +223,7 @@ class _DesktopShellState extends State<_DesktopShell> {
             children: [
               StatusDot(dot),
               const SizedBox(width: 9),
-              Text('$word · $platform',
-                  style: AppText.ui(11, FontWeight.w500, AppColors.text2)),
+              Text('$word · $platform', style: AppText.ui(11, FontWeight.w500, AppColors.text2)),
             ],
           ),
         );
@@ -253,7 +258,7 @@ class _MobileTab {
 }
 
 /// Data usage has a tab only where the OS reports per-app traffic.
-/// The bottom bar. Leaks, Data usage, Speed test and Kerio balance open
+/// The bottom bar. Leaks, Data usage, Speed test and Kerio control open
 /// from their cards on Home as screens of their own.
 const _mobileTabs = <_MobileTab>[
   _MobileTab('Home', Icons.grid_view_rounded),
@@ -365,8 +370,7 @@ class _MobileShellState extends State<_MobileShell> {
                 onPressed: bloc.onRefreshButtonClick,
               ),
               const SizedBox(width: 8),
-              IconActionButton(
-                  icon: Icons.logout, danger: true, onPressed: bloc.onExitClick),
+              IconActionButton(icon: Icons.logout, danger: true, onPressed: bloc.onExitClick),
             ],
           ),
         ),
@@ -382,7 +386,7 @@ class _MobileShellState extends State<_MobileShell> {
                   _openSection('Leak detection', const LeakSection(compact: true), trailing: const _LeakOkPill()),
               onOpenUsage: () => _openSection('Data usage', const UsageSection(compact: true)),
               onOpenSpeed: () => _openSection('Speed test', const SpeedSection(compact: true)),
-              onOpenBalance: () => _openSection('Kerio balance', const BalanceSection(compact: true)),
+              onOpenBalance: () => _openSection('Kerio control', const BalanceSection(compact: true)),
             ),
           ),
         ),
@@ -515,8 +519,7 @@ class _MobileConnectionScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
               child: Row(
                 children: [
-                  IconActionButton(
-                      icon: Icons.arrow_back, onPressed: () => Navigator.of(context).pop()),
+                  IconActionButton(icon: Icons.arrow_back, onPressed: () => Navigator.of(context).pop()),
                   const SizedBox(width: 12),
                   Text('Connection', style: AppText.ui(17, FontWeight.w700, AppColors.text)),
                 ],

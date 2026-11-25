@@ -414,7 +414,7 @@ class AppBloc with AppSystemTray {
     }
 
     if (balance.remaining < 1073741824 && lowBalanceToastCount < 2) {
-      _showToast('Less than 1 GB is left in your Kerio account.', title: 'Kerio balance', id: 'kerio-low');
+      _showToast('Less than 1 GB is left in your Kerio account.', title: 'Kerio control', id: 'kerio-low');
       await AppSharedPreferences.setKerioLowBalanceToastCount(lowBalanceToastCount + 1);
       await AppSharedPreferences.setKerioLowBalanceToastDate(today.toIso8601String());
     }
