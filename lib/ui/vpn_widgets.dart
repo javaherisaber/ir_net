@@ -17,6 +17,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:zxing2/qrcode.dart';
 
 import 'components.dart';
+import 'connection_widgets.dart' show copyToClipboard;
 import 'format.dart';
 import 'qr_scan_screen.dart';
 import 'theme.dart';
@@ -561,6 +562,7 @@ class VpnHeroCard extends StatelessWidget {
               _PowerButton(
                 phase: c.phase,
                 size: compact ? 58 : 68,
+                label: true,
                 onPressed: state.unsupportedReason != null || (state.profiles.isEmpty && !c.isConnected)
                     ? null
                     : bloc.v2ray.toggle,
@@ -705,21 +707,40 @@ class _ConnectedDetails extends StatelessWidget {
           if (c.downloaded != null && c.uploaded != null) (Icons.data_usage, formatBytes(c.downloaded! + c.uploaded!)),
           if (c.mode == VpnMode.tunnel) (Icons.alt_route, 'All traffic tunnelled'),
           if (!kIsWeb && !Platform.isAndroid && c.systemProxy) (Icons.settings_ethernet, 'System proxy on'),
-          if (!kIsWeb && !Platform.isAndroid && c.httpProxy != null && !compact)
-            (Icons.lan_outlined, 'HTTP ${c.httpProxy}'),
         ];
+        final desktop = !kIsWeb && !Platform.isAndroid && !compact;
+        final proxies = [
+          if (desktop && c.httpProxy != null) ('HTTP', c.httpProxy!),
+          if (desktop && c.socksProxy != null) ('SOCKS5', c.socksProxy!),
+        ];
+        Widget detail(IconData icon, String text, {bool copy = false}) => Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 13, color: AppColors.text3),
+                const SizedBox(width: 5),
+                Text(text, style: AppText.mono(11.5, FontWeight.w500, AppColors.text2)),
+                if (copy) ...[
+                  const SizedBox(width: 6),
+                  const Icon(Icons.copy_rounded, size: 12, color: AppColors.text3),
+                ],
+              ],
+            );
         return Wrap(
           spacing: 16,
           runSpacing: 8,
           children: [
-            for (final (icon, text) in items)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, size: 13, color: AppColors.text3),
-                  const SizedBox(width: 5),
-                  Text(text, style: AppText.mono(11.5, FontWeight.w500, AppColors.text2)),
-                ],
+            for (final (icon, text) in items) detail(icon, text),
+            // The local proxies other apps can point at: tap to copy.
+            for (final (kind, address) in proxies)
+              Tooltip(
+                message: 'Copy $address',
+                waitDuration: const Duration(milliseconds: 600),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(6),
+                  onTap: () => copyToClipboard(context, address),
+                  hoverColor: AppColors.card2,
+                  child: detail(Icons.lan_outlined, '$kind $address', copy: true),
+                ),
               ),
           ],
         );
@@ -729,18 +750,22 @@ class _ConnectedDetails extends StatelessWidget {
 }
 
 class _PowerButton extends StatelessWidget {
-  const _PowerButton({required this.phase, required this.size, required this.onPressed});
+  const _PowerButton({required this.phase, required this.size, required this.onPressed, this.label = false});
   final ConnectionPhase phase;
   final double size;
   final VoidCallback? onPressed;
+
+  /// Shows what a tap does under the button instead of in a tooltip.
+  final bool label;
 
   @override
   Widget build(BuildContext context) {
     final connected = phase == ConnectionPhase.connected;
     final busy = phase == ConnectionPhase.connecting || phase == ConnectionPhase.disconnecting;
     final failed = phase == ConnectionPhase.failed;
-    return Tooltip(
-      message: connected || phase == ConnectionPhase.connecting ? 'Disconnect' : 'Connect',
+    final action = connected || phase == ConnectionPhase.connecting ? 'Disconnect' : 'Connect';
+    final button = Tooltip(
+      message: label ? '' : action,
       // The glow is painted here, outside the Material: ink decorations are
       // clipped to the Material's square bounds, which cut the glow square.
       child: DecoratedBox(
@@ -800,6 +825,16 @@ class _PowerButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+    if (!label) return button;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        button,
+        const SizedBox(height: 7),
+        Text(action,
+            style: AppText.ui(11.5, FontWeight.w600, onPressed == null ? AppColors.text3 : AppColors.text2)),
+      ],
     );
   }
 }
@@ -1580,9 +1615,14 @@ class _ConnectionCard extends StatelessWidget {
         : Platform.isWindows
             ? 'Windows asks for administrator permission once to set it up, then it connects without asking.'
             : 'Asks for your password once to set it up, then connects without asking.';
-    return mode == VpnMode.tunnel
-        ? 'Everything on this computer goes through the VPN, even apps that ignore proxy settings. $ask'
-        : 'Browsers and apps that follow the system proxy use the VPN; others connect directly. No password needed.';
+    return switch (mode) {
+      VpnMode.tunnel =>
+        'Everything on this computer goes through the VPN, even apps that ignore proxy settings. $ask',
+      VpnMode.proxy =>
+        'Browsers and apps that follow the system proxy use the VPN; others connect directly. No password needed.',
+      VpnMode.service => 'Only starts the local proxy (HTTP 127.0.0.1:10809, SOCKS5 127.0.0.1:10808) and changes '
+          'nothing on this computer. Point any app at it yourself.',
+    };
   }
 
   String get _killSwitchText {
@@ -1678,6 +1718,10 @@ class _ConnectionCard extends StatelessWidget {
                 option(VpnMode.tunnel, Icons.alt_route),
                 const SizedBox(width: 10),
                 option(VpnMode.proxy, Icons.settings_ethernet),
+                if (!_android) ...[
+                  const SizedBox(width: 10),
+                  option(VpnMode.service, Icons.dns_outlined),
+                ],
               ],
             ),
           ),
