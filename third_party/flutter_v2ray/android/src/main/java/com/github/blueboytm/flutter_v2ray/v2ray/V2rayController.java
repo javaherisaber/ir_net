@@ -1,0 +1,164 @@
+package com.github.blueboytm.flutter_v2ray.v2ray;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.Build;
+import android.util.Log;
+
+import com.github.blueboytm.flutter_v2ray.v2ray.core.V2rayCoreManager;
+import com.github.blueboytm.flutter_v2ray.v2ray.services.V2rayProxyOnlyService;
+import com.github.blueboytm.flutter_v2ray.v2ray.services.V2rayVPNService;
+import com.github.blueboytm.flutter_v2ray.v2ray.utils.AppConfigs;
+import com.github.blueboytm.flutter_v2ray.v2ray.utils.Utilities;
+
+import java.util.ArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+import libv2ray.Libv2ray;
+
+public class V2rayController {
+    public static final String ACTION_DELAY_REQUEST =
+            "com.github.blueboytm.flutter_v2ray.MEASURE_DELAY";
+    private static BroadcastReceiver connectionStateReceiver;
+
+    public static synchronized void init(final Context context, final int app_icon, final String app_name) {
+        Context appContext = context.getApplicationContext();
+        Utilities.copyAssets(appContext);
+        AppConfigs.APPLICATION_ICON = app_icon;
+        AppConfigs.APPLICATION_NAME = app_name;
+
+        // initializeV2Ray may be called repeatedly; avoid leaking registrations.
+        if (connectionStateReceiver == null) {
+            BroadcastReceiver receiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context receiverContext, Intent intent) {
+                    if (intent == null) return;
+                    Object state = intent.getSerializableExtra("STATE");
+                    if (state instanceof AppConfigs.V2RAY_STATES) {
+                        String serviceMode = intent.getStringExtra("SERVICE_MODE");
+                        if (!V2rayConnectionCoordinator.acceptsStatusFrom(serviceMode)) return;
+                        AppConfigs.V2RAY_STATE = (AppConfigs.V2RAY_STATES) state;
+                        V2rayConnectionCoordinator.onConnectionState(
+                                (AppConfigs.V2RAY_STATES) state, serviceMode);
+                    }
+                }
+            };
+            IntentFilter filter = new IntentFilter("V2RAY_CONNECTION_INFO");
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                appContext.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                appContext.registerReceiver(receiver, filter);
+            }
+            connectionStateReceiver = receiver;
+        }
+    }
+
+    public static void changeConnectionMode(final AppConfigs.V2RAY_CONNECTION_MODES connection_mode) {
+        // Do not gate this on a cross-process status broadcast: the state can
+        // still be CONNECTED while an old service is shutting down.
+        AppConfigs.V2RAY_CONNECTION_MODE = connection_mode;
+    }
+
+    public static void StartV2ray(final Context context, final String remark, final String config,
+                                  final ArrayList<String> blocked_apps,
+                                  final ArrayList<String> bypass_subnets) {
+        StartV2ray(context, remark, config, blocked_apps, bypass_subnets,
+                AppConfigs.V2RAY_CONNECTION_MODE);
+    }
+
+    public static void StartV2ray(final Context context, final String remark, final String config,
+                                  final ArrayList<String> blocked_apps,
+                                  final ArrayList<String> bypass_subnets,
+                                  final AppConfigs.V2RAY_CONNECTION_MODES mode) {
+        final com.github.blueboytm.flutter_v2ray.v2ray.utils.V2rayConfig parsed =
+                Utilities.parseV2rayJsonFile(remark, config, blocked_apps, bypass_subnets);
+        if (parsed == null) {
+            Log.e("V2RAY_SESSION", "Cannot start: invalid V2Ray configuration");
+            return;
+        }
+        String signature = mode + ":" + remark + ":" + parsed.V2RAY_FULL_JSON_CONFIG
+                + ":" + blocked_apps + ":" + bypass_subnets;
+        V2rayConnectionCoordinator.start(context, parsed, mode, signature);
+    }
+
+    public static void StopV2ray(final Context context) {
+        V2rayConnectionCoordinator.stop(context);
+    }
+
+    public static long getConnectedV2rayServerDelay(Context context, String url) {
+        // The Flutter process and the VPN daemon are separate Android processes.
+        // The broadcast-backed local state can be stale even when Xray is running.
+        // Always ask the active service; it owns the real native CoreController.
+        Log.i("V2RAY_DELAY", "Request connected delay; cachedState=" + getConnectionState()
+                + ", mode=" + AppConfigs.V2RAY_CONNECTION_MODE);
+        // Never call Context.startService() merely to measure latency. That
+        // previously recreated the VPN daemon immediately after Disconnect.
+        if (!V2rayConnectionCoordinator.isRequestedRunning()) return -1;
+        Intent checkDelay = new Intent(ACTION_DELAY_REQUEST);
+        checkDelay.setPackage(context.getPackageName());
+        checkDelay.putExtra("MODE", AppConfigs.V2RAY_CONNECTION_MODE.name());
+        final String requestId = java.util.UUID.randomUUID().toString();
+        checkDelay.putExtra("REQUEST_ID", requestId);
+
+        final long[] delay = {-1};
+        final CountDownLatch latch = new CountDownLatch(1);
+        BroadcastReceiver receiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context receiverContext, Intent intent) {
+                if (intent == null || !requestId.equals(intent.getStringExtra("REQUEST_ID"))) return;
+                try {
+                    delay[0] = Long.parseLong(intent.getStringExtra("DELAY"));
+                } catch (Exception ignored) {
+                    delay[0] = -1;
+                }
+                Log.i("V2RAY_DELAY", "Received connected delay broadcast: " + delay[0]);
+                latch.countDown();
+            }
+        };
+
+        // Register before starting the service; otherwise a fast reply is lost.
+        IntentFilter filter = new IntentFilter("CONNECTED_V2RAY_SERVER_DELAY");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            context.registerReceiver(receiver, filter);
+        }
+
+        try {
+            checkDelay.putExtra("DELAY_URL", url);
+            context.sendBroadcast(checkDelay);
+            // Native Xray delay measurement can take up to 12 seconds.
+            if (!latch.await(15, TimeUnit.SECONDS)) {
+                Log.w("V2RAY_DELAY", "Timed out waiting for connected delay broadcast");
+                return -1;
+            }
+            return delay[0];
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return -1;
+        } finally {
+            context.unregisterReceiver(receiver);
+        }
+    }
+
+    public static long getV2rayServerDelay(final String config, final String url) {
+        return V2rayCoreManager.getInstance().getV2rayServerDelay(config, url);
+    }
+
+    public static AppConfigs.V2RAY_CONNECTION_MODES getConnectionMode() {
+        return AppConfigs.V2RAY_CONNECTION_MODE;
+    }
+
+    public static AppConfigs.V2RAY_STATES getConnectionState() {
+        return AppConfigs.V2RAY_STATE;
+    }
+
+    public static String getCoreVersion() {
+        return Libv2ray.checkVersionX();
+    }
+
+
+}

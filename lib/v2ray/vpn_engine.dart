@@ -77,11 +77,16 @@ class ConnectOptions {
 }
 
 class EngineSession {
-  const EngineSession({this.httpProxy, required this.systemProxy, this.note});
+  const EngineSession({this.httpProxy, this.udpProxy, required this.systemProxy, this.note});
 
   /// Local HTTP proxy for IRNet's own requests ("[user:pass@]127.0.0.1:port"),
   /// or null when they already go through the tunnel.
   final String? httpProxy;
+
+  /// Local SOCKS5 proxy ("127.0.0.1:port") whose UDP takes the way the other
+  /// apps' UDP takes, for IRNet's UDP probes: Android Tunnel mode, where
+  /// IRNet is outside its own VPN. Null elsewhere.
+  final String? udpProxy;
   final bool systemProxy;
   final String? note;
 }
@@ -628,8 +633,10 @@ class AndroidVpnEngine implements VpnEngine {
     final id = record?['profileId'] as String?;
     final proxy = record?['httpProxy'] as String?;
     if (id == null || proxy == null || _running) return;
+    final udp = record?['udpProxy'] as String?;
     _running = true;
-    _events.add(EngineResumed(id, EngineSession(httpProxy: proxy, systemProxy: true)));
+    _events.add(EngineResumed(
+        id, EngineSession(httpProxy: proxy, udpProxy: udp == null || udp.isEmpty ? null : udp, systemProxy: true)));
   }
 
   @override
@@ -703,7 +710,11 @@ class AndroidVpnEngine implements VpnEngine {
     }
     _running = true;
     final httpProxy = 'irnet:$pass@127.0.0.1:$http';
-    await store.saveRecovery({'profileId': profile.id, 'httpProxy': httpProxy});
+    // The apps' UDP reaches Xray's SOCKS inbound through tun2socks; IRNet's
+    // UDP probes go the same way (Tunnel mode only: in Proxy mode the apps'
+    // UDP doesn't use the VPN at all).
+    final udpProxy = tunnel ? '127.0.0.1:$socks' : null;
+    await store.saveRecovery({'profileId': profile.id, 'httpProxy': httpProxy, 'udpProxy': udpProxy});
     // What the Quick Settings tile starts when the app isn't running
     // (VpnTileService.kt): this connection, exactly.
     await store.saveQuickConnect({
@@ -714,9 +725,11 @@ class AndroidVpnEngine implements VpnEngine {
       'proxyOnly': !tunnel,
       'profileId': profile.id,
       'httpProxy': httpProxy,
+      'udpProxy': udpProxy,
     });
     return EngineSession(
       httpProxy: httpProxy,
+      udpProxy: udpProxy,
       systemProxy: tunnel,
       note: tunnel
           ? null

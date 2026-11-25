@@ -1,0 +1,132 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'url/parser.dart';
+import 'url/url.dart';
+
+import 'flutter_v2ray_platform_interface.dart';
+import 'model/v2ray_status.dart';
+
+export 'config/v2ray_config_builder.dart';
+export 'model/v2ray_status.dart';
+export 'url/url.dart';
+export 'url/parser.dart' show parseV2RayURL;
+
+class FlutterV2ray {
+  FlutterV2ray({required this.onStatusChanged});
+
+  /// This method is called when V2Ray status has changed.
+  final void Function(V2RayStatus status) onStatusChanged;
+
+  /// Request VPN service permission specifically for Android.
+  Future<bool> requestPermission() async {
+    if (Platform.isAndroid) {
+      return await FlutterV2rayPlatform.instance.requestPermission();
+    }
+    throw UnsupportedError('flutter_v2ray VPN permission is only supported on Android');
+  }
+
+  /// You must initialize V2Ray before using it.
+  Future<void> initializeV2Ray({
+    String notificationIconResourceType = "mipmap",
+    String notificationIconResourceName = "ic_launcher",
+  }) async {
+    await FlutterV2rayPlatform.instance.initializeV2Ray(
+      onStatusChanged: onStatusChanged,
+      notificationIconResourceType: notificationIconResourceType,
+      notificationIconResourceName: notificationIconResourceName,
+    );
+  }
+
+  /// Start V2Ray service.
+  ///
+  /// config:
+  ///
+  ///   V2Ray Config (json)
+  ///
+  /// blockedApps:
+  ///
+  ///   Apps that won't go through the VPN tunnel.
+  ///
+  ///   Contains a list of package names.
+  ///
+  ///   specifically for Android.
+  ///
+  /// bypassSubnets:
+  ///
+  ///     [Default = 0.0.0.0/0]
+  ///
+  ///     Add at least one route if you want the system to send traffic through the VPN interface.
+  ///
+  ///     Routes filter by destination addresses.
+  ///
+  ///     To accept all traffic, set an open route such as 0.0.0.0/0 or ::/0.
+  ///
+  /// proxyOnly:
+  ///
+  ///   If it is true, only the v2ray proxy will be executed,
+  ///
+  ///   and the VPN tunnel will not be executed.
+  Future<void> startV2Ray({
+    required String remark,
+    required String config,
+    List<String>? blockedApps,
+    List<String>? bypassSubnets,
+    bool proxyOnly = false,
+    String notificationDisconnectButtonName = "DISCONNECT",
+  }) async {
+    _validateXrayJson(config);
+
+    await FlutterV2rayPlatform.instance.startV2Ray(
+      remark: remark,
+      config: config,
+      blockedApps: blockedApps,
+      proxyOnly: proxyOnly,
+      bypassSubnets: bypassSubnets,
+      notificationDisconnectButtonName: notificationDisconnectButtonName,
+    );
+  }
+
+  /// Stop V2Ray service.
+  Future<void> stopV2Ray() async {
+    await FlutterV2rayPlatform.instance.stopV2Ray();
+  }
+
+  /// This method returns the real server delay of the configuration.
+  Future<int> getServerDelay(
+      {required String config,
+      String url = 'https://google.com/generate_204'}) async {
+    _validateXrayJson(config);
+    return await FlutterV2rayPlatform.instance
+        .getServerDelay(config: config, url: url);
+  }
+
+  /// This method returns the connected server delay.
+  Future<int> getConnectedServerDelay(
+      {String url = 'https://google.com/generate_204'}) async {
+    return await FlutterV2rayPlatform.instance.getConnectedServerDelay(url);
+  }
+
+  // This method returns the V2Ray Core version.
+  Future<String> getCoreVersion() async {
+    return await FlutterV2rayPlatform.instance.getCoreVersion();
+  }
+
+  /// Perform lightweight validation without trying to duplicate Xray's schema.
+  static void _validateXrayJson(String config) {
+    final dynamic value;
+    try {
+      value = jsonDecode(config);
+    } on FormatException {
+      throw ArgumentError('The provided string is not valid JSON');
+    }
+    if (value is! Map<String, dynamic>) {
+      throw ArgumentError('Xray configuration must be a JSON object');
+    }
+  }
+
+  /// parse V2RayURL object from V2Ray share link
+  ///
+  /// like vmess://, vless://, trojan://, ss://, socks://
+  static V2RayURL parseFromURL(String url) => parseV2RayURL(url);
+}

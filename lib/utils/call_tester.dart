@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:ir_net/data/call_quality.dart';
 
 import 'quality_probes.dart';
+import 'socks_udp.dart';
 
 enum CallTestPhase { voice, download, upload }
 
@@ -36,6 +37,7 @@ class CallTester {
     this.uploadBytes = 1500000,
     this.transferTimeout = const Duration(seconds: 8),
     this.proxy,
+    this.udpProxy,
     HostLookup? lookup,
     HttpClient Function()? clientFactory,
     Random? random,
@@ -64,6 +66,11 @@ class CallTester {
   /// System HTTP proxy for the bandwidth part. Calls' UDP doesn't use HTTP
   /// proxies, so the voice part always goes direct.
   final String? Function()? proxy;
+
+  /// SOCKS5 proxy that carries UDP the way the other apps' UDP goes
+  /// (Android Tunnel mode, where IRNet is outside its own VPN): the voice
+  /// burst goes through it when set.
+  final String? Function()? udpProxy;
   final HostLookup _lookup;
   final HttpClient Function() _clientFactory;
   final Random _random;
@@ -89,29 +96,26 @@ class CallTester {
   }
 
   Future<_BurstStats> _voiceBurst(void Function(CallTestProgress)? onProgress) async {
-    final (socket, address, port) = await _pickTarget();
+    final via = udpProxy?.call();
+    final path = via == null ? await _directPath() : await _proxyPath(via);
     final clock = Stopwatch()..start();
     final sentAt = List<int?>.filled(packets, null);
     final rtt = List<double?>.filled(packets, null);
     final salt = Uint8List.fromList(List.generate(8, (_) => _random.nextInt(256)));
-    socket.listen((event) {
-      if (event != RawSocketEvent.read) return;
-      Datagram? d;
-      while ((d = socket.receive()) != null) {
-        final id = stunResponseTransactionId(d!.data);
-        if (id == null || !_sameSalt(id, salt)) continue;
-        final seq = ByteData.sublistView(id).getUint32(0);
-        final at = seq < packets ? sentAt[seq] : null;
-        if (at == null || rtt[seq] != null) continue;
-        final ms = (clock.elapsedMicroseconds - at) / 1000;
-        if (ms <= lossTimeout.inMilliseconds) rtt[seq] = ms;
-      }
+    path.datagrams.listen((data) {
+      final id = stunResponseTransactionId(data);
+      if (id == null || !_sameSalt(id, salt)) return;
+      final seq = ByteData.sublistView(id).getUint32(0);
+      final at = seq < packets ? sentAt[seq] : null;
+      if (at == null || rtt[seq] != null) return;
+      final ms = (clock.elapsedMicroseconds - at) / 1000;
+      if (ms <= lossTimeout.inMilliseconds) rtt[seq] = ms;
     });
     try {
       for (var seq = 0; seq < packets; seq++) {
         sentAt[seq] = clock.elapsedMicroseconds;
         try {
-          socket.send(_request(seq, salt), address, port);
+          path.send(_request(seq, salt));
         } on SocketException {
           // Counts as lost, like a dropped frame.
         }
@@ -122,9 +126,59 @@ class CallTester {
       }
       await Future<void>.delayed(lossTimeout);
     } finally {
-      socket.close();
+      path.close();
     }
     return _BurstStats.from(rtt, lateAfterMs: lateAfter.inMicroseconds / 1000);
+  }
+
+  Future<_UdpPath> _directPath() async {
+    final (socket, address, port) = await _pickTarget();
+    final datagrams = StreamController<Uint8List>();
+    socket.listen((event) {
+      if (event != RawSocketEvent.read) return;
+      Datagram? d;
+      while ((d = socket.receive()) != null) {
+        datagrams.add(d!.data);
+      }
+    });
+    return _UdpPath(
+      send: (bytes) => socket.send(bytes, address, port),
+      datagrams: datagrams.stream,
+      close: () {
+        socket.close();
+        datagrams.close();
+      },
+    );
+  }
+
+  /// Through the VPN's SOCKS5 UDP: the first server that answers there (the
+  /// VPN resolves the names).
+  Future<_UdpPath> _proxyPath(String proxy) async {
+    var target = targets.first;
+    for (final candidate in targets) {
+      final single = StunProber(targets: [candidate], timeout: const Duration(seconds: 1), socks: () => proxy);
+      final double? answer;
+      try {
+        answer = await single.probe(); // ProbeUnavailable: no UDP through the VPN
+      } finally {
+        single.close();
+      }
+      if (answer != null) {
+        target = candidate;
+        break;
+      }
+    }
+    final SocksUdpAssociation association;
+    try {
+      association = await SocksUdpAssociation.open(proxy);
+    } catch (e) {
+      throw ProbeUnavailable('UDP through the VPN unavailable: $e');
+    }
+    return _UdpPath(
+      send: (bytes) => association.send(bytes, target.host, target.port) ? bytes.length : 0,
+      datagrams: association.datagrams,
+      close: association.close,
+    );
   }
 
   /// The first server that answers; UDP being blocked shows up as a burst
@@ -357,3 +411,12 @@ class _BurstStats {
 CallTestResult analyzeBurstForTest(List<double?> rtt,
         {double lateAfterMs = 120, double? downMbps, double? upMbps}) =>
     _BurstStats.from(rtt, lateAfterMs: lateAfterMs).toResult(server: 't', downMbps: downMbps, upMbps: upMbps);
+
+/// Where the voice burst's datagrams go: a plain UDP socket, or the VPN's
+/// SOCKS5 UDP.
+class _UdpPath {
+  const _UdpPath({required this.send, required this.datagrams, required this.close});
+  final int Function(Uint8List bytes) send;
+  final Stream<Uint8List> datagrams;
+  final void Function() close;
+}

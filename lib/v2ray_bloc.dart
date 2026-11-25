@@ -121,6 +121,10 @@ class V2rayBloc {
   /// HTTP proxy for IRNet's own requests while connected, else null.
   String? get localProxy => value.connection.isConnected ? value.connection.httpProxy : null;
 
+  /// SOCKS5 proxy for IRNet's UDP probes while connected (Android Tunnel
+  /// mode), so they measure the VPN's UDP path.
+  String? get udpProxy => value.connection.isConnected ? value.connection.udpProxy : null;
+
   SubscriptionClient get _subscriptions => _subscriptionClient ??= SubscriptionClient(httpClient: _httpClient);
 
   final http.Client Function()? _httpClientOverride;
@@ -255,6 +259,7 @@ class V2rayBloc {
             profileName: value.profileById(profileId)?.name,
             since: DateTime.now(),
             httpProxy: session.httpProxy,
+            udpProxy: session.udpProxy,
             systemProxy: session.systemProxy,
             mode: value.mode,
           ),
@@ -811,6 +816,7 @@ class V2rayBloc {
               profileName: targetName,
               since: DateTime.now(),
               httpProxy: session.httpProxy,
+              udpProxy: session.udpProxy,
               systemProxy: session.systemProxy,
               note: session.note,
               mode: mode,

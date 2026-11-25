@@ -191,7 +191,11 @@ object QuickConnect {
             // Lets the app pick the connection up when it opens.
             prefs.edit().putString(
                 RECOVERY,
-                JSONObject().put("profileId", record.optString("profileId")).put("httpProxy", record.optString("httpProxy")).toString()
+                JSONObject()
+                    .put("profileId", record.optString("profileId"))
+                    .put("httpProxy", record.optString("httpProxy"))
+                    .put("udpProxy", record.optString("udpProxy"))
+                    .toString()
             ).apply()
             V2rayController.StartV2ray(
                 app,

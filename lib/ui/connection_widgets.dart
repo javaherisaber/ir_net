@@ -54,42 +54,6 @@ VpnState vpnStateOf(ConnectionInfo info) {
   return info.isIran ? VpnState.exposed : VpnState.protected;
 }
 
-/// The "VPN ON" badge shown on connection hero cards.
-class VpnPill extends StatelessWidget {
-  const VpnPill(this.state, {super.key});
-  final VpnState state;
-
-  @override
-  Widget build(BuildContext context) {
-    switch (state) {
-      case VpnState.protected:
-        return const Pill(
-          label: 'VPN ON',
-          dotColor: AppColors.good,
-          textColor: AppColors.accent,
-          background: Color(0x1433D6C6),
-          borderColor: Color(0x5933D6C6),
-        );
-      case VpnState.exposed:
-        return const Pill(
-          label: 'NO VPN',
-          dotColor: AppColors.bad,
-          textColor: AppColors.bad,
-          background: AppColors.badSoft,
-          borderColor: AppColors.badBorder,
-        );
-      case VpnState.checking:
-        return const Pill(
-          label: 'CHECKING',
-          dotColor: AppColors.warn,
-          textColor: AppColors.text2,
-          background: AppColors.card,
-          borderColor: AppColors.line,
-        );
-    }
-  }
-}
-
 /// Header chip ("The Netherlands · Enschede" + status dot) used on desktop.
 class ConnectionChip extends StatelessWidget {
   const ConnectionChip({super.key});
@@ -251,18 +215,26 @@ class ConnectionHeroCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Overline('ISP'),
-                  const SizedBox(height: 2),
-                  Text(info.isp ?? '—', style: AppText.mono(13, FontWeight.w500, AppColors.text)),
-                ],
+              // Long ISP names ("Iran Telecommunication Company PJS") end
+              // in "…" before reaching "Details".
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Overline('ISP'),
+                    const SizedBox(height: 2),
+                    Text(info.isp ?? '—',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.mono(13, FontWeight.w500, AppColors.text)),
+                  ],
+                ),
               ),
               // The whole card opens the details; this just says so.
               if (onDetails != null)
                 Row(
                   children: [
+                    const SizedBox(width: 12),
                     Text('Details', style: AppText.ui(12, FontWeight.w500, AppColors.text3)),
                     const Icon(Icons.chevron_right, size: 16, color: AppColors.text3),
                   ],
@@ -566,7 +538,7 @@ class _AddressCard extends StatelessWidget {
         ],
       ],
     );
-    final ip = _PublicIp(ip: info.ip, state: vpnStateOf(info), compact: compact);
+    final ip = _PublicIp(ip: info.ip, compact: compact);
     return AppCard(
       gradient: AppGradients.card,
       radius: compact ? 18 : 16,
@@ -602,11 +574,10 @@ class _AddressCard extends StatelessWidget {
   }
 }
 
-/// The public IP, large, copied on click; with the VPN's state.
+/// The public IP, large, copied on click.
 class _PublicIp extends StatefulWidget {
-  const _PublicIp({required this.ip, required this.state, required this.compact});
+  const _PublicIp({required this.ip, required this.compact});
   final String? ip;
-  final VpnState state;
   final bool compact;
 
   @override
@@ -648,7 +619,6 @@ class _PublicIpState extends State<_PublicIp> {
           const Overline('Public IP'),
           const SizedBox(width: 10),
           Expanded(child: Align(alignment: Alignment.centerLeft, child: tappable)),
-          VpnPill(widget.state),
         ],
       );
     }
@@ -658,8 +628,6 @@ class _PublicIpState extends State<_PublicIp> {
         const Padding(padding: EdgeInsets.only(right: 6), child: Overline('Public IP')),
         const SizedBox(height: 4),
         tappable,
-        const SizedBox(height: 8),
-        Padding(padding: const EdgeInsets.only(right: 6), child: VpnPill(widget.state)),
       ],
     );
   }

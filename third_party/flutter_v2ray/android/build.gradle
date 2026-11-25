@@ -1,0 +1,84 @@
+group 'com.github.blueboytm.flutter_v2ray'
+version '1.0'
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.11.1'
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    if (project.android.hasProperty("namespace")) {
+        namespace 'com.github.blueboytm.flutter_v2ray'
+    }
+
+    compileSdkVersion 34
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    defaultConfig {
+        minSdkVersion 21
+    }
+
+    dependencies {
+        testImplementation 'junit:junit:4.13.2'
+        testImplementation 'org.mockito:mockito-core:5.0.0'
+    }
+
+    testOptions {
+        unitTests.all {
+            testLogging {
+               events "passed", "skipped", "failed", "standardOut", "standardError"
+               outputs.upToDateWhen {false}
+               showStandardStreams = true
+            }
+        }
+    }
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['src/main/jniLibs']
+        }
+    }
+}
+
+
+dependencies {
+    implementation 'com.github.2dust:libv2ray:v26.10.17@aar'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+}
+
+// Resolve the published AAR on demand and cache it through Gradle.
+// The release tag is the dependency revision, e.g. v26.10.17.
+rootProject.allprojects {
+    repositories {
+        ivy {
+            name = 'AndroidLibXrayLite'
+            url = uri('https://github.com/2dust/AndroidLibXrayLite/releases/download')
+            patternLayout {
+                artifact '[revision]/libv2ray.aar'
+            }
+            metadataSources {
+                artifact()
+            }
+            content {
+                includeGroup 'com.github.2dust'
+            }
+        }
+    }
+}

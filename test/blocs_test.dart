@@ -177,6 +177,19 @@ void main() {
       await quality.dispose();
     });
 
+    test('behind the VPN\'s proxy, UDP goes through its SOCKS instead of being skipped', () async {
+      String? udp = '127.0.0.1:10808';
+      final quality = QualityBloc(
+        proxy: () => 'irnet:p@127.0.0.1:10809',
+        udpProxy: () => udp,
+        database: () async => db,
+      );
+      expect(quality.monitor.skipUdp!(), isFalse);
+      udp = null;
+      expect(quality.monitor.skipUdp!(), isTrue, reason: 'behind a plain proxy, UDP would bypass it');
+      await quality.dispose();
+    });
+
     test('pausing and resuming the monitor persists the setting', () async {
       SharedPreferences.setMockInitialValues({'flutter.qualityMonitoring': false});
       final quality = QualityBloc(

@@ -130,24 +130,31 @@ class CallTestEntry {
 
 /// Runs the quality monitor, persists its minutes and serves dashboard data.
 class QualityBloc {
+  /// [proxy]: the HTTP proxy IRNet's requests use (the VPN's, or a system
+  /// proxy). [udpProxy]: a SOCKS5 proxy that carries UDP the way the other
+  /// apps' UDP goes (Android Tunnel mode); without one, UDP isn't measured
+  /// while [proxy] is set, since it would bypass the proxy.
   QualityBloc({
     String? Function()? proxy,
+    String? Function()? udpProxy,
     VoidCallback? onRecovered,
     QualityMonitor? monitor,
     Future<Database> Function()? database,
     CallTester? callTester,
   })  : _proxy = proxy,
+        _udpProxy = udpProxy,
         _database = database ?? (() => AppDatabase.instance),
-        _callTester = callTester ?? CallTester(proxy: proxy),
+        _callTester = callTester ?? CallTester(proxy: proxy, udpProxy: udpProxy),
         monitor = monitor ??
             QualityMonitor(
-              udp: StunProber(),
+              udp: StunProber(socks: udpProxy),
               http: HttpsProber(proxy: proxy),
               onRecovered: onRecovered,
-              skipUdp: () => proxy?.call() != null,
+              skipUdp: () => proxy?.call() != null && udpProxy?.call() == null,
             );
 
   final String? Function()? _proxy;
+  final String? Function()? _udpProxy;
   final Future<Database> Function() _database;
   final CallTester _callTester;
   final QualityMonitor monitor;
@@ -391,7 +398,7 @@ class QualityBloc {
         for (final s in monitor.samples)
           if (s.server == monitor.server && !s.time.isBefore(since)) s,
       ],
-      udpSkipped: _proxy?.call() != null,
+      udpSkipped: _proxy?.call() != null && _udpProxy?.call() == null,
       udpUnavailable: monitor.udpUnavailable,
       settling: monitor.settling,
     );

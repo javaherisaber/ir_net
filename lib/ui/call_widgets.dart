@@ -58,9 +58,12 @@ class CallQualityCard extends StatelessWidget {
         ? 'Run a call test to check bandwidth for video'
         : '${tier.label} · ${formatMbps(latestHere!.result.downMbps)} ↓ / ${formatMbps(latestHere.result.upMbps)} ↑';
     final viaTcp = voice?.viaTcp ?? false;
-    final source = viaTcp
-        ? 'UDP blocked: call apps fall back to slower TCP relays'
-        : 'Last ${QualityLive.liveWindow.inMinutes} min of probes';
+    final source = live.udpSkipped
+        // Nothing was sent over UDP, so nothing is known to be blocked.
+        ? 'UDP isn\'t measured behind a proxy: estimated from HTTPS'
+        : viaTcp
+            ? 'UDP blocked: call apps fall back to slower TCP relays'
+            : 'Last ${QualityLive.liveWindow.inMinutes} min of probes';
 
     return AppCard(
       padding: EdgeInsets.all(compact ? 16 : 20),

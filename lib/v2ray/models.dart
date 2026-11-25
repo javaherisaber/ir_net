@@ -539,6 +539,7 @@ class V2rayConnection {
     this.since,
     this.error,
     this.httpProxy,
+    this.udpProxy,
     this.systemProxy = false,
     this.note,
     this.uploadSpeed,
@@ -567,6 +568,9 @@ class V2rayConnection {
   /// IRNet's own requests use while connected.
   final String? httpProxy;
 
+  /// SOCKS5 proxy for IRNet's UDP probes (see EngineSession.udpProxy).
+  final String? udpProxy;
+
   /// Whether the OS-wide proxy points at the core (desktop).
   final bool systemProxy;
 
@@ -591,6 +595,7 @@ class V2rayConnection {
         since: since,
         error: error,
         httpProxy: httpProxy,
+        udpProxy: udpProxy,
         systemProxy: systemProxy,
         note: note,
         uploadSpeed: uploadSpeed,
@@ -609,6 +614,7 @@ class V2rayConnection {
         since: since,
         error: error,
         httpProxy: httpProxy,
+        udpProxy: udpProxy,
         systemProxy: systemProxy,
         note: note,
         uploadSpeed: uploadSpeed,

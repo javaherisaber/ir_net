@@ -51,6 +51,7 @@ class AppBloc with AppSystemTray {
   /// Network quality monitoring (probes are attributed to the public IP).
   QualityBloc get quality => _quality ??= QualityBloc(
         proxy: () => _effectiveProxy,
+        udpProxy: () => _v2ray?.udpProxy,
         onRecovered: () => _checkIpLocation(),
       );
 
