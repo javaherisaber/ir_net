@@ -10,6 +10,7 @@ import android.net.ConnectivityManager
 import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
@@ -57,6 +58,7 @@ object IpMonitor {
     private var app: Context? = null
     private var notifications: IpNotificationManager? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var physicalCallback: ConnectivityManager.NetworkCallback? = null
     private var receiver: BroadcastReceiver? = null
     private var dart: MethodChannel? = null
 
@@ -120,7 +122,7 @@ object IpMonitor {
 
     fun stop() {
         val ctx = app ?: return
-        networkCallback?.let {
+        listOfNotNull(networkCallback, physicalCallback).forEach {
             try {
                 ctx.getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(it)
             } catch (_: Exception) {
@@ -133,6 +135,7 @@ object IpMonitor {
             }
         }
         networkCallback = null
+        physicalCallback = null
         receiver = null
         main.removeCallbacks(poll)
         main.removeCallbacks(lookupNow)
@@ -362,7 +365,7 @@ object IpMonitor {
 
     private fun registerNetworkCallback(ctx: Context) {
         val cm = ctx.getSystemService(ConnectivityManager::class.java) ?: return
-        val callback = object : ConnectivityManager.NetworkCallback() {
+        fun watcher() = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 main.post { onNetwork() }
             }
@@ -381,9 +384,21 @@ object IpMonitor {
         }
         try {
             // The network IRNet's own traffic uses: changes with Wi-Fi, mobile
-            // data and other apps' VPNs (IRNet's own VPN leaves it out).
+            // data and VPNs (IRNet's own too in Xray TUN mode).
+            val callback = watcher()
             cm.registerDefaultNetworkCallback(callback)
             networkCallback = callback
+            // The real networks under a VPN, which can come and go while the
+            // VPN (the default network) stays up.
+            val physical = watcher()
+            cm.registerNetworkCallback(
+                NetworkRequest.Builder()
+                    .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+                    .build(),
+                physical,
+            )
+            physicalCallback = physical
         } catch (e: Exception) {
             Log.w(TAG, "Couldn't watch the network", e)
         }
@@ -461,6 +476,9 @@ object IpMonitor {
         val network = cm.activeNetwork ?: return OFFLINE
         val caps = cm.getNetworkCapabilities(network) ?: return OFFLINE
         if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return OFFLINE
+        // A VPN stays up with nothing under it: IRNet's own VPN in Xray TUN
+        // mode (cloned apps), where IRNet is inside it, or another app's.
+        if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) && !hasPhysicalInternet(cm)) return OFFLINE
         val transports = listOf(
             NetworkCapabilities.TRANSPORT_WIFI to "wifi",
             NetworkCapabilities.TRANSPORT_CELLULAR to "cell",
@@ -473,6 +491,14 @@ object IpMonitor {
         // IPv4 only: rotating IPv6 privacy addresses don't change the lookup.
         val v4 = lp?.linkAddresses?.mapNotNull { (it.address as? Inet4Address)?.hostAddress }?.sorted()
         return "$network|$transports|$validated|${lp?.interfaceName}|$v4"
+    }
+
+    /** Wi-Fi, mobile data or the like is connected (not just a VPN). */
+    @Suppress("DEPRECATION")
+    private fun hasPhysicalInternet(cm: ConnectivityManager): Boolean = cm.allNetworks.any { n ->
+        val c = cm.getNetworkCapabilities(n) ?: return@any false
+        c.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN) &&
+            c.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     // ───────────────────────────── output ─────────────────────────────

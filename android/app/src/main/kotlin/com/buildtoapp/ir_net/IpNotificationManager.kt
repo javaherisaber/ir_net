@@ -63,7 +63,8 @@ class IpNotificationManager(private val context: Context) {
         val texts = NotificationText.of(state, vpn)
         val icon = when (state) {
             is IpState.Located -> IconCompat.createWithBitmap(countryCodeBitmap(state.info.countryCode))
-            is IpState.Unavailable, IpState.Offline -> IconCompat.createWithResource(context, android.R.drawable.ic_dialog_alert)
+            is IpState.Unavailable -> IconCompat.createWithResource(context, android.R.drawable.ic_dialog_alert)
+            IpState.Offline -> IconCompat.createWithResource(context, R.drawable.ic_stat_offline)
             IpState.Starting -> IconCompat.createWithResource(context, android.R.drawable.ic_dialog_info)
         }
 
