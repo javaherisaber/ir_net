@@ -1685,9 +1685,14 @@ class _ConnectionCard extends StatelessWidget {
                     children: [
                       Icon(icon, size: 17, color: active ? AppColors.accent : AppColors.text2),
                       const SizedBox(width: 8),
-                      Text(mode.label,
-                          style: AppText.ui(13.5, FontWeight.w700, active ? AppColors.accent : AppColors.text)),
-                      const Spacer(),
+                      // Three modes share the row on desktop (and iOS's phone
+                      // width): a long label ends in "…" rather than overflowing.
+                      Expanded(
+                        child: Text(mode.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.ui(13.5, FontWeight.w700, active ? AppColors.accent : AppColors.text)),
+                      ),
                       if (active) const Icon(Icons.check_circle, size: 16, color: AppColors.accent),
                     ],
                   ),
