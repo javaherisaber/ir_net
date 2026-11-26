@@ -53,17 +53,36 @@ class QualityStore {
     });
   }
 
-  Future<void> setLabel(String ip, String? label) async {
+  /// Names the server [server] belongs to: every known IP of its subnet.
+  /// [server] is an exit IP or a server row's key (the subnet itself).
+  Future<void> setLabel(String server, String? label) async {
     final value = (label == null || label.trim().isEmpty) ? null : label.trim();
-    await db.rawUpdate('UPDATE quality_server SET label = ? WHERE ip = ?', [value, ip]);
+    final subnet = serverSubnet(server);
+    final batch = db.batch();
+    for (final row in await db.rawQuery('SELECT ip FROM quality_server')) {
+      final ip = row['ip'] as String;
+      if (serverSubnet(ip) == subnet) {
+        batch.rawUpdate('UPDATE quality_server SET label = ? WHERE ip = ?', [value, ip]);
+      }
+    }
+    await batch.commit(noResult: true);
   }
 
+  /// Metadata per exit IP. A name belongs to the whole server, so IPs first
+  /// seen after it was given carry it too; if the IPs of a subnet were named
+  /// differently, the most recently seen name wins.
   Future<Map<String, ServerInfo>> servers() async {
-    final rows = await db.rawQuery('SELECT * FROM quality_server');
-    return {for (final r in rows) r['ip'] as String: ServerInfo.fromRow(r)};
+    final rows = await db.rawQuery('SELECT * FROM quality_server ORDER BY last_seen, ip');
+    final infos = rows.map(ServerInfo.fromRow).toList();
+    final names = {
+      for (final info in infos)
+        if (info.label != null) serverSubnet(info.ip): info.label,
+    };
+    return {for (final info in infos) info.ip: info.withLabel(names[serverSubnet(info.ip)])};
   }
 
-  /// One row per server (or per location) for `[from, to)`, best score first.
+  /// One row per server (the exit IPs of one subnet) or per location for
+  /// `[from, to)`, best score first.
   Future<List<ServerQuality>> compare({
     required int from,
     required int to,
@@ -80,7 +99,7 @@ class QualityStore {
     for (final row in rows) {
       final ip = row['server'] as String;
       final info = infos[ip] ?? ServerInfo(ip: ip);
-      final key = grouping == QualityGrouping.server ? ip : locationKey(info);
+      final key = grouping == QualityGrouping.server ? serverSubnet(ip) : locationKey(info);
       final group = groups.putIfAbsent(key, () => _Group());
       group.stats.merge(qualityStatsFromRow(row));
       group.ips.add(ip);

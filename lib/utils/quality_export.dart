@@ -44,14 +44,16 @@ String reportPeriod(QualityReport r) {
 /// "Last 24 hours" / "All time".
 String reportRangeLabel(QualityReport r) => r.range.span == null ? r.range.label : 'Last ${r.range.label}';
 
-/// "All servers, by IP" or the selected comparison row.
+/// "All servers, compared by subnet" or the selected comparison row.
 String reportScope(QualityReport r) {
   final selected = r.selected;
   if (selected == null) {
-    return r.grouping == QualityGrouping.server ? 'All servers, compared by IP' : 'All servers, compared by location';
+    return r.grouping == QualityGrouping.server
+        ? 'All servers, compared by subnet'
+        : 'All servers, compared by location';
   }
   final title = r.titleOf(selected);
-  final ips = selected.ips.length == 1 ? selected.ips.single : '${selected.ips.length} IPs';
+  final ips = selected.ipSummary;
   return title == ips ? title : '$title ($ips)';
 }
 
@@ -195,11 +197,11 @@ List<ReportFinding> reportFindings(QualityReport r) {
     final best = scored.first;
     final worst = scored.last;
     out.add(ReportFinding(FindingTone.info,
-        'Best $noun: ${r.titleOf(best)} (score ${best.stats.score!.value}); worst: ${r.titleOf(worst)} (score ${worst.stats.score!.value}).'));
+        'Best $noun: ${r.nameOf(best)} (score ${best.stats.score!.value}); worst: ${r.nameOf(worst)} (score ${worst.stats.score!.value}).'));
   }
   if (r.rows.length > 1) {
     for (final row in r.udpBlockedRows.take(3)) {
-      out.add(ReportFinding(FindingTone.warn, 'UDP is blocked on ${r.titleOf(row)}: calls there use TCP relays.'));
+      out.add(ReportFinding(FindingTone.warn, 'UDP is blocked on ${r.nameOf(row)}: calls there use TCP relays.'));
     }
   }
 
@@ -262,7 +264,7 @@ String reportSummary(QualityReport r) {
       i++;
       final st = row.stats;
       final sc = st.score;
-      final ips = row.ips.length == 1 ? row.ips.single : '${row.ips.length} IPs';
+      final ips = row.ipSummary;
       final title = r.titleOf(row);
       b.writeln('$i. ${title == ips ? title : '$title ($ips)'}${r.isCurrent(row) ? ' [current]' : ''}: '
           '${sc == null ? 'no score' : 'score ${sc.value} (${sc.grade.label})'} · ping ${formatMs(st.latency)} · '
@@ -393,7 +395,8 @@ String probesCsv(QualityReport r) => _csv(
 
 const _filesGuide = '''
 Files
-- servers.csv     One row per server (exit IP) or location: score, ping, jitter, loss, real delay, uptime, call MOS.
+- servers.csv     One row per server (the exit IPs of one /24 subnet) or location: score, ping, jitter, loss,
+                  real delay, uptime, call MOS.
 - history.csv     The charted history: one row per time bucket of the report's scope.
 - minutes.csv     Every stored minute of the period for every server (raw counters and timings).
 - call_tests.csv  Simulated calls run in the period (400 voice packets + a bandwidth check).

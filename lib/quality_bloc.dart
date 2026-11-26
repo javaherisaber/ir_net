@@ -290,8 +290,10 @@ class QualityBloc {
     reload();
   }
 
-  Future<void> rename(String ip, String? label) async {
-    await _store?.setLabel(ip, label);
+  /// Names the server [server] belongs to (every IP of its subnet); [server]
+  /// is an exit IP or a server row's key.
+  Future<void> rename(String server, String? label) async {
+    await _store?.setLabel(server, label);
     await reload();
   }
 

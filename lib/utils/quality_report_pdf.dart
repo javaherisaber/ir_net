@@ -647,10 +647,10 @@ class _ReportPdf {
 
   List<pw.Widget> _serversSection() {
     if (r.rows.isEmpty) return const [];
-    final byIp = r.grouping == QualityGrouping.server;
+    final byServer = r.grouping == QualityGrouping.server;
     final rows = r.rows;
     final table = _table(
-        headers: [byIp ? 'Server' : 'Location', ..._statHeaders, 'Time'],
+        headers: [byServer ? 'Server' : 'Location', ..._statHeaders, 'Time'],
         flex: [2.9, ..._statFlex, 0.95],
         highlighted: {
           for (var i = 0; i < rows.length; i++)
@@ -666,7 +666,7 @@ class _ReportPdf {
         ],
       );
     return [
-      ..._keepShort(byIp ? 'Servers compared' : 'Locations compared', table, rows.length,
+      ..._keepShort(byServer ? 'Servers compared' : 'Locations compared', table, rows.length,
           note: 'Best score first · tinted row = current exit'),
       pw.SizedBox(height: 18),
     ];
@@ -679,7 +679,7 @@ class _ReportPdf {
 
   pw.Widget _serverCell(ServerQuality row) {
     final info = row.info;
-    final ips = row.ips.length == 1 ? row.ips.single : '${row.ips.length} IPs';
+    final ips = row.ipSummary;
     final title = r.titleOf(row);
     final detail = [
       if (title != ips) ips,
@@ -801,7 +801,8 @@ class _ReportPdf {
           '400 voice-sized UDP packets every 20 ms, like a real call, then a 2.5 MB download and 1.5 MB upload. '
               'Video needs ~0.6 Mbps (SD), 1.2 (HD) or 3 (Full HD) each way.'),
       ('Servers',
-          'Measurements are grouped by public exit IP (the VPN server or ISP), located with ip-api.com.'),
+          'Measurements are grouped by public exit IP (the VPN server or ISP), located with ip-api.com. '
+              'Exit IPs of one /24 subnet (/64 for IPv6) count as one server, since VPNs often rotate between them.'),
       ('Status dots',
           'Good / fair limits: ping 120 / 250 ms, jitter 20 / 50 ms, loss 1 / 5 %, real delay 300 / 800 ms, '
               'uptime 99.5 / 98 %. Beyond them: poor.'),

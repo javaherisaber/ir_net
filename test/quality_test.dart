@@ -409,6 +409,22 @@ void main() {
     await dir.delete(recursive: true);
   });
 
+  test('a server is the /24 (IPv4) or /64 (IPv6) subnet of its exit IP', () {
+    expect(serverSubnet('205.252.135.202'), '205.252.135.0/24');
+    expect(serverSubnet('205.252.135.1'), serverSubnet('205.252.135.254'));
+    expect(serverSubnet('94.20.158.141'), isNot(serverSubnet('94.20.159.74')));
+    expect(serverSubnet('2a01:4f8:c17:1a2b:0:0:0:1'), '2a01:4f8:c17:1a2b::/64');
+    expect(serverSubnet('2A01:04F8:0C17:1A2B::FFFF'), '2a01:4f8:c17:1a2b::/64');
+    expect(serverSubnet('2001:db8::1'), '2001:db8::/64');
+    expect(serverSubnet('2001:0:0:1::7'), '2001:0:0:1::/64');
+    expect(serverSubnet('::1'), '::/64');
+    // Not an IP: unchanged, so a subnet maps to itself.
+    expect(serverSubnet('205.252.135.0/24'), '205.252.135.0/24');
+    expect(serverSubnet('2001:db8::/64'), '2001:db8::/64');
+    expect(serverSubnet('a'), 'a');
+    expect(serverSubnet(''), '');
+  });
+
   group('QualityStore', () {
     late Database db;
     late QualityStore store;
@@ -450,8 +466,10 @@ void main() {
         window(base, '198.51.100.2', udp: [80, 82, 81, 79]),
       ]);
       final rows = await store.compare(from: base, to: base + 3600);
-      expect(rows.map((r) => r.key), ['198.51.100.2', '203.0.113.1']);
+      expect(rows.map((r) => r.key), ['198.51.100.0/24', '203.0.113.0/24']);
       final bad = rows.last;
+      expect(bad.ips, ['203.0.113.1']);
+      expect(bad.ipSummary, '203.0.113.1', reason: 'a lone IP is shown as itself');
       expect(bad.info.city, 'Frankfurt');
       expect(bad.stats.udp.sent, 8);
       expect(bad.stats.udp.received, 5);
@@ -478,6 +496,86 @@ void main() {
       final rows = await store.compare(from: 0, to: 10000);
       expect(rows.single.stats.udp.received, 2);
       expect(rows.single.stats.ticks, 2);
+    });
+
+    test('server grouping merges the exit IPs of one subnet', () async {
+      // A VPN that hands out another exit IP of its /24 on every connection,
+      // next to a provider with two neighbouring /24s in the same city.
+      final t = DateTime.utc(2026, 11, 25, 9);
+      final base = t.millisecondsSinceEpoch ~/ 1000;
+      const frankfurt = ServerInfo(
+          ip: '', country: 'Germany', countryCode: 'DE', city: 'Frankfurt am Main', isp: 'PCCW Global (HK) Limited');
+      const baku = ServerInfo(ip: '', country: 'Azerbaijan', countryCode: 'AZ', city: 'Baku', isp: 'Delta Telecom');
+      final exits = [
+        ('205.252.135.202', frankfurt, 100.0),
+        ('205.252.135.10', frankfurt, 110.0),
+        ('205.252.135.46', frankfurt, 120.0),
+        ('94.20.158.141', baku, 90.0),
+        ('94.20.159.74', baku, 94.0),
+      ];
+      for (final (i, (ip, place, rtt)) in exits.indexed) {
+        await store.touchServer(
+            ServerInfo(
+                ip: ip, country: place.country, countryCode: place.countryCode, city: place.city, isp: place.isp),
+            t.add(Duration(minutes: i)));
+        await store.saveWindows([window(base + i * 60, ip, udp: [rtt, rtt])]);
+      }
+      final rows = {for (final r in await store.compare(from: base, to: base + 3600)) r.key: r};
+      expect(rows.keys, unorderedEquals(['205.252.135.0/24', '94.20.158.0/24', '94.20.159.0/24']));
+
+      final pccw = rows['205.252.135.0/24']!;
+      expect(pccw.ips, unorderedEquals(['205.252.135.202', '205.252.135.10', '205.252.135.46']));
+      expect(pccw.stats.udp.received, 6);
+      expect(pccw.stats.udp.avgRtt, 110);
+      expect(pccw.firstTs, base);
+      expect(pccw.lastTs, base + 120);
+      expect(pccw.info.ip, '205.252.135.46', reason: 'metadata of the most recently measured IP');
+      expect(pccw.address, '205.252.135.0/24');
+      expect(pccw.ipSummary, '205.252.135.0/24 · 3 IPs');
+      expect(rows['94.20.158.0/24']!.ipSummary, '94.20.158.141');
+
+      final byCity = await store.compare(from: base, to: base + 3600, grouping: QualityGrouping.location);
+      final bakuRow = byCity.firstWhere((r) => r.key == 'AZ|Baku');
+      expect(bakuRow.address, isNull, reason: 'two subnets');
+      expect(bakuRow.ipSummary, '2 IPs');
+    });
+
+    test('naming a server names every IP of its subnet', () async {
+      final t = DateTime.utc(2026, 11, 25);
+      for (final (i, ip) in ['205.252.135.10', '205.252.135.46', '94.20.158.141'].indexed) {
+        await store.touchServer(ServerInfo(ip: ip), t.add(Duration(minutes: i)));
+      }
+      await store.setLabel('205.252.135.0/24', ' PCCW FRA ');
+      var servers = await store.servers();
+      expect(servers['205.252.135.10']!.label, 'PCCW FRA');
+      expect(servers['205.252.135.46']!.label, 'PCCW FRA');
+      expect(servers['94.20.158.141']!.label, isNull, reason: 'another subnet');
+
+      // A new exit IP of the same subnet carries the server's name.
+      await store.touchServer(const ServerInfo(ip: '205.252.135.202'), t.add(const Duration(hours: 1)));
+      await store.saveWindows([window(0, '205.252.135.202', udp: [100])]);
+      expect((await store.servers())['205.252.135.202']!.label, 'PCCW FRA');
+      expect((await store.compare(from: 0, to: 3600)).single.info.label, 'PCCW FRA');
+
+      // Naming it through any of its IPs renames the whole server.
+      await store.setLabel('205.252.135.202', 'Frankfurt VPN');
+      servers = await store.servers();
+      expect({for (final ip in ['205.252.135.10', '205.252.135.46', '205.252.135.202']) servers[ip]!.label},
+          {'Frankfurt VPN'});
+      await store.setLabel('205.252.135.46', '');
+      expect((await store.servers()).values.map((s) => s.label), everyElement(isNull));
+    });
+
+    test('IPs of a subnet named apart before grouping show the latest name', () async {
+      final t = DateTime.utc(2026, 11, 25);
+      await store.touchServer(const ServerInfo(ip: '203.0.113.1'), t);
+      await store.touchServer(const ServerInfo(ip: '203.0.113.2'), t.add(const Duration(minutes: 1)));
+      // Labels as an older version stored them: one IP at a time.
+      await db.rawUpdate("UPDATE quality_server SET label = 'Hetzner #1' WHERE ip = '203.0.113.1'");
+      await db.rawUpdate("UPDATE quality_server SET label = 'Hetzner #2' WHERE ip = '203.0.113.2'");
+      final servers = await store.servers();
+      expect(servers['203.0.113.1']!.label, 'Hetzner #2');
+      expect(servers['203.0.113.2']!.label, 'Hetzner #2');
     });
 
     test('location grouping merges IPs of the same city', () async {

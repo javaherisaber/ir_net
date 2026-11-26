@@ -294,7 +294,7 @@ void main() {
 
     // A maximised window gets the full comparison table.
     tester.view.physicalSize = const Size(1500, 2000);
-    await tester.tap(find.text('By IP'));
+    await tester.tap(find.text('By server'));
     await settle(tester);
     expect(find.text('MEASURED'), findsOneWidget, reason: 'column header of the wide table');
     await _shot(tester, 'quality_wide');
@@ -316,7 +316,7 @@ void main() {
         ('Warsaw', 'Poland', 'PL'),
       ];
       for (final (i, (city, country, code)) in places.indexed) {
-        final ip = '203.0.113.${i + 1}';
+        final ip = '203.0.${113 + i}.1'; // four subnets: four servers
         await store.touchServer(ServerInfo(ip: ip, city: city, country: country, countryCode: code), now);
         final minute = QualityWindow(minuteStart(now) - (20 + i) * 3600, ip)..ticks = 30;
         for (var j = 0; j < 30; j++) {
@@ -352,6 +352,41 @@ void main() {
     expect(find.text('Warsaw, Poland'), findsOneWidget);
     expect(find.text('Stockholm, Sweden'), findsNothing);
     await _shot(tester, 'quality_recent_servers');
+
+    await tearDownBlocs(tester);
+  });
+
+  testWidgets('Server comparison shows the exit IPs of one subnet as one row', (tester) async {
+    await setUpBlocs(tester);
+    await tester.runAsync(() async {
+      await seedRotatingVpn(QualityStore(db), DateTime.now());
+      await bloc.quality.reload();
+    });
+    await pumpShell(tester, const Size(1000, 2000));
+    await tester.tap(find.text('Network quality').first);
+    await settle(tester);
+
+    const pccw = '205.252.135.0/24 · $rotatingVpnIps IPs · PCCW Global (HK) Limited';
+    expect(find.text('Frankfurt am Main, Germany'), findsOneWidget);
+    expect(find.text(pccw), findsOneWidget);
+    expect(find.text('94.20.159.0/24 · 2 IPs · Delta Telecom'), findsOneWidget);
+    expect(find.text('Show all 6'), findsOneWidget, reason: '3 seeded servers + Frankfurt + two Baku subnets');
+    await _shot(tester, 'quality_subnet_rows');
+
+    // Naming the row names the whole server.
+    final row = find.ancestor(of: find.text(pccw), matching: find.byType(InkWell)).first;
+    await tester.tap(find.descendant(of: row, matching: find.byTooltip('Rename')));
+    await tester.pumpAndSettle();
+    expect(find.text('205.252.135.0/24 · $rotatingVpnIps IPs · Frankfurt am Main, Germany'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'PCCW FRA');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle(); // dialog fade-out
+    await settle(tester);
+    expect(find.text('PCCW FRA'), findsOneWidget);
+    expect(find.text('Frankfurt am Main, Germany'), findsNothing);
+    final servers = (await tester.runAsync(() => QualityStore(db).servers()))!;
+    expect(servers.entries.where((e) => e.key.startsWith('205.252.135.')).map((e) => e.value.label).toSet(),
+        {'PCCW FRA'});
 
     await tearDownBlocs(tester);
   });
@@ -479,7 +514,7 @@ void main() {
     await until(find.text('Save PDF'));
     await tester.pump(const Duration(milliseconds: 300)); // dialog fade-in
     expect(find.text('Export network quality'), findsOneWidget);
-    expect(find.text('Last 24 hours · All servers, compared by IP'), findsOneWidget);
+    expect(find.text('Last 24 hours · All servers, compared by subnet'), findsOneWidget);
     expect(find.textContaining('3 servers · '), findsOneWidget);
     await _shot(tester, 'quality_export_dialog');
 

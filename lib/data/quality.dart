@@ -303,13 +303,17 @@ class ServerInfo {
   String get place => [city, country].whereType<String>().join(', ');
 
   /// The same server without its user-given name.
-  ServerInfo get unlabeled => ServerInfo(
+  ServerInfo get unlabeled => withLabel(null);
+
+  /// The same server under the user-given name [label].
+  ServerInfo withLabel(String? label) => ServerInfo(
         ip: ip,
         country: country,
         countryCode: countryCode,
         region: region,
         city: city,
         isp: isp,
+        label: label,
         firstSeen: firstSeen,
         lastSeen: lastSeen,
       );
@@ -322,7 +326,37 @@ class ServerInfo {
 }
 
 /// How the comparison table groups measurements.
-enum QualityGrouping { server, location }
+enum QualityGrouping {
+  /// One row per server: the exit IPs of one subnet (see [serverSubnet]).
+  server,
+
+  /// One row per city.
+  location,
+}
+
+/// The subnet an exit IP belongs to: its /24 for IPv4 ("203.0.113.0/24"),
+/// its /64 for IPv6. VPNs often hand out another exit IP of the same subnet
+/// on every connection, so the IPs of one subnet are one server. Anything
+/// that is not an IP (such as a subnet) comes back unchanged.
+String serverSubnet(String ip) {
+  try {
+    final b = Uri.parseIPv4Address(ip);
+    return '${b[0]}.${b[1]}.${b[2]}.0/24';
+  } on FormatException {
+    // Not IPv4.
+  }
+  try {
+    final b = Uri.parseIPv6Address(ip);
+    final groups = [for (var i = 0; i < 8; i += 2) ((b[i] << 8) | b[i + 1]).toRadixString(16)];
+    // Trailing zero groups join the "::" (2001:db8:0:0::/64 → 2001:db8::/64).
+    while (groups.isNotEmpty && groups.last == '0') {
+      groups.removeLast();
+    }
+    return '${groups.join(':')}::/64';
+  } on FormatException {
+    return ip;
+  }
+}
 
 /// A server's display name: its user-given label, else its location, else the IP.
 String serverTitle(ServerInfo info, {QualityGrouping grouping = QualityGrouping.server}) {
@@ -356,7 +390,7 @@ enum QualityMetric {
   }
 }
 
-/// A comparison-table row: one exit IP, or every IP of one city.
+/// A comparison-table row: the exit IPs of one server (subnet), or of one city.
 class ServerQuality {
   ServerQuality({
     required this.key,
@@ -380,6 +414,22 @@ class ServerQuality {
   /// count 2 s (the default interval) per tick.
   Duration get monitored =>
       Duration(seconds: (stats.seconds > 0 ? stats.seconds : stats.ticks * 2).round());
+
+  /// The row's only IP, or the subnet all its IPs share; null when they
+  /// span several subnets (a city's servers).
+  late final String? address = () {
+    if (ips.length == 1) return ips.single;
+    final subnets = {for (final ip in ips) serverSubnet(ip)};
+    return subnets.length == 1 ? subnets.single : null;
+  }();
+
+  /// The row's IPs at a glance: "203.0.113.7", "203.0.113.0/24 · 12 IPs"
+  /// or "12 IPs".
+  String get ipSummary {
+    if (ips.length == 1) return ips.single;
+    final count = '${ips.length} IPs';
+    return address == null ? count : '$address · $count';
+  }
 }
 
 /// One bucket of the history chart.

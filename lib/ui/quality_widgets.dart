@@ -487,7 +487,7 @@ class QualityFilterBar extends StatelessWidget {
                     SegmentedPills<QualityGrouping>(
                       values: QualityGrouping.values,
                       selected: f.grouping,
-                      label: (g) => g == QualityGrouping.server ? 'By IP' : 'By location',
+                      label: (g) => g == QualityGrouping.server ? 'By server' : 'By location',
                       onSelected: bloc.quality.setGrouping,
                     ),
                   ],
@@ -660,9 +660,7 @@ class _QualityCompareCardState extends State<QualityCompareCard> {
   Widget _serverCell(QualityDashboard data, ServerQuality r) {
     final grouping = data.filter.grouping;
     final title = serverTitle(r.info, grouping: grouping);
-    final subtitle = grouping == QualityGrouping.server
-        ? [r.info.ip, r.info.isp].whereType<String>().join(' · ')
-        : '${r.ips.length} IP${r.ips.length == 1 ? '' : 's'}${r.info.isp == null ? '' : ' · ${r.info.isp}'}';
+    final subtitle = [r.ipSummary, r.info.isp].whereType<String>().join(' · ');
     return Row(
       children: [
         FlagIcon(r.info.countryCode),
@@ -697,7 +695,7 @@ class _QualityCompareCardState extends State<QualityCompareCard> {
             visualDensity: VisualDensity.compact,
             iconSize: 15,
             color: AppColors.text3,
-            onPressed: () => _rename(r.info),
+            onPressed: () => _rename(r),
             icon: const Icon(Icons.edit_outlined),
           ),
       ],
@@ -837,7 +835,8 @@ class _QualityCompareCardState extends State<QualityCompareCard> {
     );
   }
 
-  Future<void> _rename(ServerInfo info) async {
+  Future<void> _rename(ServerQuality row) async {
+    final info = row.info;
     final controller = TextEditingController(text: info.label ?? '');
     final result = await showDialog<String>(
       context: context,
@@ -848,7 +847,7 @@ class _QualityCompareCardState extends State<QualityCompareCard> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${info.ip}${info.place.isEmpty ? '' : ' · ${info.place}'}',
+            Text('${row.ipSummary}${info.place.isEmpty ? '' : ' · ${info.place}'}',
                 style: AppText.mono(11.5, FontWeight.w500, AppColors.text3)),
             const SizedBox(height: 12),
             TextField(
@@ -866,7 +865,7 @@ class _QualityCompareCardState extends State<QualityCompareCard> {
         ],
       ),
     );
-    if (result != null) await bloc.quality.rename(info.ip, result);
+    if (result != null) await bloc.quality.rename(row.key, result);
   }
 }
 

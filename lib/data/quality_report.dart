@@ -200,6 +200,15 @@ class QualityReport {
   /// Display name of a row, as in the comparison table.
   String titleOf(ServerQuality row) => serverTitle(row.info, grouping: grouping);
 
+  /// [titleOf] plus the row's address when another row has the same title
+  /// (several subnets in one city), for text that has no IP column.
+  String nameOf(ServerQuality row) {
+    final title = titleOf(row);
+    final address = row.address;
+    final shared = rows.any((other) => !identical(other, row) && titleOf(other) == title);
+    return !shared || address == null || address == title ? title : '$title · $address';
+  }
+
   /// Display name of an exit IP.
   String serverName(String ip) {
     final info = servers[ip];

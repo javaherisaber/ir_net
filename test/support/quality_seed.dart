@@ -116,3 +116,40 @@ Future<void> seedQuality(QualityStore store, DateTime now) async {
   await store.saveCallTest(
       callResult('45.86.200.5', now.subtract(const Duration(hours: 10)), rtt: 236, loss: 7, down: 4, up: 0.9));
 }
+
+/// IPs of [seedRotatingVpn]'s Frankfurt server.
+const rotatingVpnIps = 40;
+
+/// A VPN that exits through another IP of PCCW's 205.252.135.0/24 every
+/// minute (3–4 hours ago), and Baku exits in two neighbouring /24s, the
+/// second one lossy (4–5 hours ago).
+Future<void> seedRotatingVpn(QualityStore store, DateTime now) async {
+  final end = minuteStart(now);
+  final exits = [
+    for (var i = 0; i < rotatingVpnIps; i++) ('205.252.135.${10 + i * 5}', 'Frankfurt am Main', 'Germany', 'DE',
+        'PCCW Global (HK) Limited', end - (3 * 60 + i) * 60, 0.0),
+    for (final (i, ip) in ['94.20.158.141', '94.20.158.52', '94.20.159.74', '94.20.159.71'].indexed)
+      (ip, 'Baku', 'Azerbaijan', 'AZ', 'Delta Telecom', end - (4 * 60 + i) * 60, ip.startsWith('94.20.159') ? 0.5 : 0.0),
+  ];
+  for (final (ip, city, country, code, isp, ts, loss) in exits) {
+    await store.touchServer(ServerInfo(ip: ip, city: city, country: country, countryCode: code, isp: isp),
+        DateTime.fromMillisecondsSinceEpoch(ts * 1000));
+    final w = QualityWindow(ts, ip)
+      ..ticks = 20
+      ..seconds = 40;
+    double? prev;
+    for (var j = 0; j < 20; j++) {
+      if (j < 20 * loss) {
+        w.udp.addLost();
+        continue;
+      }
+      final rtt = 100.0 + j % 7;
+      w.udp.addReply(rtt, previous: prev);
+      prev = rtt;
+    }
+    for (var j = 0; j < 4; j++) {
+      w.http.addReply(104.0 + j);
+    }
+    await store.saveWindows([w]);
+  }
+}
