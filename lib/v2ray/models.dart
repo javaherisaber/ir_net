@@ -375,7 +375,12 @@ enum VpnMode {
 
   /// A local HTTP/SOCKS proxy; the desktop OS proxy points at it, so apps
   /// that honour the system proxy use the VPN and others go direct.
-  proxy('Proxy');
+  proxy('Proxy'),
+
+  /// Only the local HTTP/SOCKS proxy (desktop): nothing on the system is
+  /// changed; the user points whatever they like at it. Android's Proxy
+  /// mode already works this way, so it isn't offered there.
+  service('Service');
 
   const VpnMode(this.label);
   final String label;
@@ -540,6 +545,7 @@ class V2rayConnection {
     this.error,
     this.httpProxy,
     this.udpProxy,
+    this.socksProxy,
     this.systemProxy = false,
     this.note,
     this.uploadSpeed,
@@ -571,6 +577,9 @@ class V2rayConnection {
   /// SOCKS5 proxy for IRNet's UDP probes (see EngineSession.udpProxy).
   final String? udpProxy;
 
+  /// The local SOCKS5 proxy other apps can use (see EngineSession.socksProxy).
+  final String? socksProxy;
+
   /// Whether the OS-wide proxy points at the core (desktop).
   final bool systemProxy;
 
@@ -596,6 +605,7 @@ class V2rayConnection {
         error: error,
         httpProxy: httpProxy,
         udpProxy: udpProxy,
+        socksProxy: socksProxy,
         systemProxy: systemProxy,
         note: note,
         uploadSpeed: uploadSpeed,
@@ -615,6 +625,7 @@ class V2rayConnection {
         error: error,
         httpProxy: httpProxy,
         udpProxy: udpProxy,
+        socksProxy: socksProxy,
         systemProxy: systemProxy,
         note: note,
         uploadSpeed: uploadSpeed,

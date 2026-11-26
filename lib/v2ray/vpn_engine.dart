@@ -77,7 +77,7 @@ class ConnectOptions {
 }
 
 class EngineSession {
-  const EngineSession({this.httpProxy, this.udpProxy, required this.systemProxy, this.note});
+  const EngineSession({this.httpProxy, this.udpProxy, this.socksProxy, required this.systemProxy, this.note});
 
   /// Local HTTP proxy for IRNet's own requests ("[user:pass@]127.0.0.1:port"),
   /// or null when they already go through the tunnel.
@@ -87,6 +87,10 @@ class EngineSession {
   /// apps' UDP takes, for IRNet's UDP probes: Android Tunnel mode, where
   /// IRNet is outside its own VPN. Null elsewhere.
   final String? udpProxy;
+
+  /// Desktop Proxy and Service modes: the local SOCKS5 inbound
+  /// ("127.0.0.1:port") other apps can be pointed at.
+  final String? socksProxy;
   final bool systemProxy;
   final String? note;
 }
@@ -209,9 +213,9 @@ class DesktopVpnEngine implements VpnEngine {
   @override
   String? get unsupportedReason => _binary == null ? XrayBinary.missingMessage : null;
 
-  /// No password prompt; Tunnel is one tap away in the settings.
+  /// Everything goes through the VPN; Proxy is one tap away in the settings.
   @override
-  VpnMode get defaultMode => VpnMode.proxy;
+  VpnMode get defaultMode => VpnMode.tunnel;
 
   @override
   Future<Directory?> assetDirectory() async {
@@ -268,7 +272,8 @@ class DesktopVpnEngine implements VpnEngine {
 
     String? note;
     var systemProxy = false;
-    final proxy = _proxy;
+    // Service mode: just the local proxy, the OS proxy stays as it is.
+    final proxy = options.mode == VpnMode.service ? null : _proxy;
     if (proxy != null) {
       try {
         _snapshot = await proxy.snapshot();
@@ -285,7 +290,8 @@ class DesktopVpnEngine implements VpnEngine {
     } else {
       await store.saveRecovery({'pid': instance.pid});
     }
-    return EngineSession(httpProxy: '127.0.0.1:$http', systemProxy: systemProxy, note: note);
+    return EngineSession(
+        httpProxy: '127.0.0.1:$http', socksProxy: '127.0.0.1:$socks', systemProxy: systemProxy, note: note);
   }
 
   /// Tunnel mode: the core runs with admin rights (one prompt) and takes

@@ -62,3 +62,5 @@ nul
 /third_party/xray/
 # Local macOS code signing (team and identity), see macos/Runner/Configs/AppInfo.xcconfig
 /macos/Runner/Configs/Signing.xcconfig
+# Sentry native crash database, made in the folder the app is run from
+/.sentry-native/

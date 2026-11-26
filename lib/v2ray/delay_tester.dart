@@ -132,11 +132,12 @@ class DelayTester {
       final connect = await wire.readHead().timeout(left());
       if (connect.status != 200) return _fail('Failed');
       Future<void> get() async {
-        wire!.socket.write('GET $path HTTP/1.1\r\nHost: ${uri.host}\r\nUser-Agent: IRNet\r\n'
+        final w = wire!;
+        w.socket.write('GET $path HTTP/1.1\r\nHost: ${uri.host}\r\nUser-Agent: IRNet\r\n'
             'Connection: keep-alive\r\n\r\n');
-        final head = await wire.readHead().timeout(left());
+        final head = await w.readHead().timeout(left());
         if (head.status < 200 || head.status >= 400) throw HttpException('HTTP ${head.status}');
-        if (head.contentLength > 0) await wire.readBytes(head.contentLength).timeout(left());
+        if (head.contentLength > 0) await w.readBytes(head.contentLength).timeout(left());
       }
 
       await get();
