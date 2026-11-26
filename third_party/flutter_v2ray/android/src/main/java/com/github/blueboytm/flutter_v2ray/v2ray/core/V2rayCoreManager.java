@@ -182,6 +182,15 @@ public final class V2rayCoreManager {
     }
 
     public boolean startCore(final V2rayConfig v2rayConfig) {
+        return startCore(v2rayConfig, v2rayConfig.V2RAY_FULL_JSON_CONFIG, 0);
+    }
+
+    /**
+     * IRNet patch: [json] is the config to run (the VPN service fills in the
+     * outbound interface) and [tunFd] the VPN interface for Xray's TUN
+     * inbound, or 0 for the tun2socks pipeline.
+     */
+    public boolean startCore(final V2rayConfig v2rayConfig, final String json, final int tunFd) {
         V2RAY_STATE = AppConfigs.V2RAY_STATES.V2RAY_CONNECTING;
         if (!isLibV2rayCoreInitialized) {
             Log.e("V2RAY_CORE", "startCore failed: initCoreEnv did not complete");
@@ -197,8 +206,13 @@ public final class V2rayCoreManager {
         try {
             // tunFd=0: retain the existing external tun2socks VPN pipeline.
             Log.i("V2RAY_CORE", "startLoop enter; thread=" + Thread.currentThread().getName()
-                    + ", configBytes=" + v2rayConfig.V2RAY_FULL_JSON_CONFIG.length());
-            coreController.startLoop(v2rayConfig.V2RAY_FULL_JSON_CONFIG, 0);
+                    + ", configBytes=" + json.length() + ", tunFd=" + tunFd);
+            if (tunFd > 0) {
+                // Per-app rules ("process") need the owner of each connection.
+                coreController.registerProcessFinder(new AppProcessFinder(
+                        v2rayServicesListener.getService().getApplicationContext()));
+            }
+            coreController.startLoop(json, tunFd);
             boolean started = isV2rayCoreRunning();
             Log.i("V2RAY_CORE", "startLoop returned; isRunning=" + started);
             if (!started) {
@@ -223,6 +237,24 @@ public final class V2rayCoreManager {
             return false;
         }
         return true;
+    }
+
+    /**
+     * IRNet patch: runs the core again with [json] on the same VPN interface
+     * (the network changed, so the outbound interface did), keeping the
+     * session's state, timers and notification.
+     */
+    public synchronized boolean restartLoop(final String json, final int tunFd) {
+        try {
+            if (isV2rayCoreRunning()) coreController.stopLoop();
+            coreController.startLoop(json, tunFd);
+            boolean running = isV2rayCoreRunning();
+            Log.i("V2RAY_CORE", "Core restarted; isRunning=" + running);
+            return running;
+        } catch (Exception e) {
+            Log.e("V2RAY_CORE", "Core restart failed", e);
+            return false;
+        }
     }
 
     public void stopCore() {

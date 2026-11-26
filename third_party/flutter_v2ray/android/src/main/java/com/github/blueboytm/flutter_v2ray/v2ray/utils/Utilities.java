@@ -87,6 +87,10 @@ public class Utilities {
                     } catch (Exception e) {
                         //ignore
                     }
+                    // IRNet patch: Xray reads the VPN interface itself.
+                    if ("tun".equals(inbounds.getJSONObject(i).optString("protocol"))) {
+                        v2rayConfig.XRAY_TUN = true;
+                    }
                 }
             } catch (Exception e) {
                 Log.w(V2rayCoreManager.class.getSimpleName(), "startCore warn => can`t find inbound port of socks5 or http.");

@@ -15,4 +15,15 @@ void main() {
     expect(service, contains('"--socks5-udp"'));
     expect(service, isNot(contains('"--enable-udprelay"')));
   });
+
+  test('Xray TUN mode keeps no app out, so cloned apps are in the VPN', () {
+    const dir = 'third_party/flutter_v2ray/android/src/main/java/com/github/blueboytm/flutter_v2ray/v2ray';
+    final service = File('$dir/services/V2rayVPNService.java').readAsStringSync();
+    expect(service, contains('startXrayTun'));
+    expect(service, contains('buildTun(false)'));
+    expect(service, contains('sockopt.put("interface"'));
+    expect(File('$dir/utils/Utilities.java').readAsStringSync(), contains('XRAY_TUN = true'));
+    expect(File('$dir/core/AppProcessFinder.java').existsSync(), isTrue);
+    expect(File('$dir/core/V2rayCoreManager.java').readAsStringSync(), contains('restartLoop'));
+  });
 }

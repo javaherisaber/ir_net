@@ -113,6 +113,9 @@ abstract class VpnEngine {
   /// The mode used until the user picks one.
   VpnMode get defaultMode;
 
+  /// [testInterface], looked up now where it can change (Android).
+  Future<String?> currentTestInterface();
+
   /// Starts cores for delay tests; null means TCP-only tests.
   XrayRunner? get testRunner;
 
@@ -178,6 +181,9 @@ class UnsupportedVpnEngine implements VpnEngine {
 
   @override
   String? get testInterface => null;
+
+  @override
+  Future<String?> currentTestInterface() async => null;
 }
 
 // ───────────────────────────── Desktop ─────────────────────────────
@@ -206,6 +212,9 @@ class DesktopVpnEngine implements VpnEngine {
 
   @override
   String? get testInterface => _instance == null ? null : _tunnelInterface;
+
+  @override
+  Future<String?> currentTestInterface() async => testInterface;
 
   static const preferredSocksPort = 10808;
   static const preferredHttpPort = 10809;
@@ -659,8 +668,45 @@ class AndroidVpnEngine implements VpnEngine {
   String? get activeOutboundTag => null;
 
   /// IRNet is outside its own VPN on Android: tests already go direct.
+  /// (Except with cloned apps, see [currentTestInterface].)
   @override
   String? get testInterface => null;
+
+  static const _native = MethodChannel('ir_net/xray');
+
+  /// The VPN runs in Xray TUN mode, which keeps no app out (cloned apps).
+  bool _xrayTun = false;
+
+  /// In Xray TUN mode IRNet is inside its own VPN, so delay tests leave by
+  /// the physical interface, as on desktop in Tunnel mode.
+  @override
+  Future<String?> currentTestInterface() async {
+    if (!_running || !_xrayTun) return null;
+    try {
+      return await _native.invokeMethod<String>('physicalInterface');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Whether this phone has cloned apps (Samsung Dual Messenger) that only
+  /// Xray TUN mode can bring into the VPN, and supports that mode.
+  static Future<bool> _clonedApps() async {
+    try {
+      return await _native.invokeMethod<bool>('cloneProfile') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// App ids (uid without the user) of [packages], for Xray's per-app rule.
+  static Future<List<String>> _appIds(List<String> packages) async {
+    try {
+      return await _native.invokeListMethod<String>('appIds', {'packages': packages}) ?? const [];
+    } catch (_) {
+      return const [];
+    }
+  }
 
   @override
   Future<EngineSession> connect(List<V2rayProfile> profiles, ConnectOptions options) async {
@@ -678,14 +724,35 @@ class AndroidVpnEngine implements VpnEngine {
     final http = await LocalPorts.pick(10809, avoid: {socks});
     final random = Random.secure();
     final pass = List.generate(16, (_) => random.nextInt(16).toRadixString(16)).join();
-    final config = XrayConfigBuilder.connection(profile,
-        socksPort: socks,
-        httpPort: http,
-        bypassLan: bypassLan,
-        rules: rules,
-        httpAuth: (user: 'irnet', pass: pass),
-        balanced: profiles,
-        fragment: options.fragment);
+    // Samsung keeps cloned apps out of a VPN with any app list, so with
+    // clones Xray reads the VPN itself and the bypass list moves into it.
+    final xrayTun = tunnel && await _clonedApps();
+    final Map<String, dynamic> config;
+    if (xrayTun) {
+      final pinned = await DesktopVpnEngine._pinServerAddresses(profiles);
+      config = XrayConfigBuilder.androidTunnel(pinned.profiles.first,
+          socksPort: socks,
+          httpPort: http,
+          bypassLan: bypassLan,
+          rules: rules,
+          httpAuth: (user: 'irnet', pass: pass),
+          hosts: pinned.hosts,
+          balanced: pinned.profiles,
+          fragment: options.fragment,
+          bypassAppIds: options.bypassApps.isEmpty ? const [] : await _appIds(options.bypassApps));
+    } else {
+      config = XrayConfigBuilder.connection(profile,
+          socksPort: socks,
+          httpPort: http,
+          bypassLan: bypassLan,
+          rules: rules,
+          httpAuth: (user: 'irnet', pass: pass),
+          balanced: profiles,
+          fragment: options.fragment);
+    }
+    // Apps that skip the VPN by package (Android's per-app exclusion); in
+    // Xray TUN mode Xray routes them direct instead.
+    final blockedApps = tunnel && !xrayTun && options.bypassApps.isNotEmpty ? options.bypassApps : null;
 
     // Keep LAN and plain IP exclusions out of the tunnel altogether.
     final excluded = [
@@ -700,8 +767,7 @@ class AndroidVpnEngine implements VpnEngine {
         remark: profiles.length > 1 ? 'Auto (${profiles.length} servers)' : profile.name,
         config: XrayConfigBuilder.encode(config),
         bypassSubnets: tunnel ? routes : null,
-        // Apps that skip the VPN (Android's per-app exclusion).
-        blockedApps: tunnel && options.bypassApps.isNotEmpty ? options.bypassApps : null,
+        blockedApps: blockedApps,
         // Proxy mode: only the local proxy runs; apps use it if set to.
         proxyOnly: !tunnel,
         notificationDisconnectButtonName: 'Disconnect',
@@ -715,6 +781,7 @@ class AndroidVpnEngine implements VpnEngine {
       _waitingForConnect = null;
     }
     _running = true;
+    _xrayTun = xrayTun;
     final httpProxy = 'irnet:$pass@127.0.0.1:$http';
     // The apps' UDP reaches Xray's SOCKS inbound through tun2socks; IRNet's
     // UDP probes go the same way (Tunnel mode only: in Proxy mode the apps'
@@ -726,7 +793,7 @@ class AndroidVpnEngine implements VpnEngine {
     await store.saveQuickConnect({
       'remark': profiles.length > 1 ? 'Auto (${profiles.length} servers)' : profile.name,
       'config': XrayConfigBuilder.encode(config),
-      'blockedApps': tunnel && options.bypassApps.isNotEmpty ? options.bypassApps : null,
+      'blockedApps': blockedApps,
       'bypassSubnets': tunnel ? routes : null,
       'proxyOnly': !tunnel,
       'profileId': profile.id,

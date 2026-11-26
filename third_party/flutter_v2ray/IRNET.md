@@ -16,6 +16,26 @@ example app, docs and Gradle wrapper are left out.
    looked connected and TCP worked, but DNS lookups timed out, so most apps
    had no internet. `--socks5-udp` does a real UDP ASSOCIATE.
 
+2. **Xray TUN mode for cloned apps** (`V2rayConfig.XRAY_TUN`,
+   `V2rayVPNService.startXrayTun`, `AppProcessFinder`,
+   `V2rayCoreManager.startCore(config, json, tunFd)` / `restartLoop`).
+   Samsung puts its cloned apps (Dual Messenger, user 95) in a VPN only when
+   the VPN has no allowed or disallowed app list (its
+   `Vpn.createUserAndRestrictedProfilesRanges`), and the plugin always
+   excluded the host app (and IRNet its bypass list). When the config has an
+   Xray `tun` inbound:
+   - the VPN is built without any app list, and Xray reads it directly
+     (`startLoop(config, tunFd)`, no tun2socks);
+   - Xray's own connections are bound to the physical interface (every
+     outbound's `sockopt.interface`, filled in at start; the tun inbound's
+     `autoOutboundsInterface` needs netlink, which Android refuses to apps),
+     which keeps them out of the tunnel; when the network changes the core
+     restarts bound to the new interface, keeping the VPN up;
+   - a `ProcessFinder` answers each connection's app id (uid without the
+     user), for IRNet's per-app bypass rule.
+   IRNet only builds such configs on phones with a clone profile, Android 12+
+   and Linux 5.7+ (unprivileged SO_BINDTODEVICE).
+
 ## Updating
 
 When moving to a newer flutter_v2ray, copy its `lib/`, `android/` (minus

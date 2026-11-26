@@ -499,6 +499,129 @@ class XrayConfigBuilder {
     };
   }
 
+  /// Android Tunnel mode on phones with cloned apps (Samsung Dual Messenger):
+  /// Xray reads the VPN interface itself instead of tun2socks, so the VPN can
+  /// exclude no app. Samsung puts its clones (another user) in a VPN only
+  /// when the VPN has no app list at all, and IRNet would otherwise exclude
+  /// itself plus the bypass list.
+  ///
+  /// So nothing is excluded by package:
+  /// - Xray's own connections leave by the physical interface: every
+  ///   outbound's sockopt "interface", which the VPN service sets to the
+  ///   current network's ([unboundInterface] until then binds to nothing:
+  ///   no connection rather than one looping through the tunnel).
+  /// - The servers' names are pinned ([hosts]), so reaching them never needs
+  ///   DNS through the tunnel.
+  /// - Bypassed apps go direct by app id ([bypassAppIds]: the uid without
+  ///   its user, so a clone matches too), their DNS included.
+  /// The SOCKS and HTTP inbounds stay for IRNet's own requests and probes.
+  static Map<String, dynamic> androidTunnel(
+    V2rayProfile p, {
+    required int socksPort,
+    required int httpPort,
+    ProxyAuth? httpAuth,
+    bool bypassLan = true,
+    CompiledRules rules = CompiledRules.empty,
+    Map<String, List<String>> hosts = const {},
+    List<V2rayProfile> balanced = const [],
+    FragmentOptions? fragment,
+    List<String> bypassAppIds = const [],
+  }) {
+    const sniffing = {
+      'enabled': true,
+      'destOverride': ['http', 'tls', 'quic'],
+      'routeOnly': true,
+    };
+    final proxies = _proxies(balanced.length > 1 ? balanced : [p], fragment: fragment, hosts: hosts);
+    final routing = _rules(
+      lead: [
+        // Before the DNS rule: a bypassed app's lookups go direct too. Only
+        // the tunnel's connections have an app to look up.
+        if (bypassAppIds.isNotEmpty)
+          {
+            'inboundTag': ['tun'],
+            'process': bypassAppIds,
+            'outboundTag': 'direct',
+          },
+        {
+          'inboundTag': ['tun'],
+          'port': 53,
+          'outboundTag': 'dns-out',
+        },
+      ],
+      bypassLan: bypassLan,
+      rules: rules,
+      bypassApps: const [],
+      balanced: proxies.balanced,
+    );
+    return {
+      // No access log: it would list every connection on the phone.
+      'log': {'loglevel': 'warning', 'access': 'none'},
+      'inbounds': [
+        {
+          'tag': 'tun',
+          'port': 0,
+          'protocol': 'tun',
+          'settings': {'name': 'xray0', 'mtu': 1500},
+          'sniffing': sniffing,
+        },
+        {
+          'tag': 'socks',
+          'listen': '127.0.0.1',
+          'port': socksPort,
+          'protocol': 'socks',
+          'settings': {'auth': 'noauth', 'udp': true},
+          'sniffing': sniffing,
+        },
+        {
+          'tag': 'http',
+          'listen': '127.0.0.1',
+          'port': httpPort,
+          'protocol': 'http',
+          'settings': {
+            if (httpAuth != null)
+              'accounts': [
+                {'user': httpAuth.user, 'pass': httpAuth.pass}
+              ],
+          },
+          'sniffing': sniffing,
+        },
+      ],
+      'outbounds': [
+        for (final o in proxies.outbounds) _unbound(o),
+        _unbound({
+          'tag': 'direct',
+          'protocol': 'freedom',
+          // Names resolve through Xray's DNS rather than the system's, which
+          // would go through the tunnel and back.
+          'streamSettings': {
+            'sockopt': {'domainStrategy': 'UseIP'},
+          },
+        }),
+        {'tag': 'block', 'protocol': 'blackhole'},
+        // It forwards some queries itself.
+        _unbound({'tag': 'dns-out', 'protocol': 'dns'}),
+      ],
+      'routing': _routing(routing, rules, proxies.balanced),
+      if (proxies.balanced) 'observatory': _observatory,
+      'dns': {
+        'servers': dnsServers,
+        if (proxies.balanced) 'tag': 'dns-internal',
+        if (hosts.isNotEmpty) 'hosts': hosts,
+      },
+    };
+  }
+
+  /// Interface name that binds to nothing (flutter_v2ray's NO_INTERFACE),
+  /// until the VPN service sets the real one.
+  static const unboundInterface = 'irnet-unbound';
+
+  static Map<String, dynamic> _unbound(Map<String, dynamic> out) {
+    final stream = Map<String, dynamic>.of((out['streamSettings'] as Map<String, dynamic>?) ?? const {});
+    stream['sockopt'] = {...?(stream['sockopt'] as Map<String, dynamic>?), 'interface': unboundInterface};
+    return {...out, 'streamSettings': stream};
+  }
+
   /// The TUN's point-to-point network (Xray's own macOS/FreeBSD default).
   static const tunGateway = ['169.254.10.1/30'];
 

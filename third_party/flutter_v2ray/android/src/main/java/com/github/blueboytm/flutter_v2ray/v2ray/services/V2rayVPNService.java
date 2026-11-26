@@ -5,8 +5,13 @@ import android.content.Intent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.IntentFilter;
+import android.net.ConnectivityManager;
+import android.net.LinkProperties;
 import android.net.LocalSocket;
 import android.net.LocalSocketAddress;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.net.VpnService;
 import android.os.Build;
 import android.os.Handler;
@@ -30,6 +35,8 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class V2rayVPNService extends VpnService implements V2rayServicesListener {
     private V2rayDelayReceiver delayReceiver;
@@ -43,6 +50,12 @@ public class V2rayVPNService extends VpnService implements V2rayServicesListener
     private volatile boolean tunProcessStarted = false;
     private boolean stoppingAllProcesses = false;
     private static final String TAG = "VPN_SERVICE";
+
+    // IRNet patch, Xray TUN mode (V2rayConfig.XRAY_TUN): the interface Xray's
+    // own connections leave by, and what follows the network as it changes.
+    private volatile String outboundIface;
+    private ConnectivityManager.NetworkCallback underlyingCallback;
+    private ExecutorService coreRestarts;
 
     @Override
     public void onCreate() {
@@ -114,7 +127,9 @@ public class V2rayVPNService extends VpnService implements V2rayServicesListener
                     V2rayCoreManager manager = V2rayCoreManager.getInstance();
                     manager.setUpListener(V2rayVPNService.this);
                     if (!manager.isV2rayCoreRunning() &&
-                            !manager.startCore(configToStart)) {
+                            !(configToStart.XRAY_TUN
+                                    ? startXrayTun(manager, configToStart)
+                                    : manager.startCore(configToStart))) {
                         Log.e("VPN_SERVICE", "Native core failed to start");
                         stopSelf();
                     }
@@ -152,6 +167,7 @@ public class V2rayVPNService extends VpnService implements V2rayServicesListener
         // interface active long after the user pressed Disconnect.
         isRunning = false;
         tunProcessStarted = false;
+        stopWatchingUnderlyingNetwork();
         if (process != null) {
             process.destroy();
             process = null;
@@ -188,9 +204,21 @@ public class V2rayVPNService extends VpnService implements V2rayServicesListener
     }
 
     private void setup() {
+        if (buildTun(true)) runTun2socks();
+    }
+
+    /**
+     * Establishes the VPN interface. [excludeApps]: keep the host app (whose
+     * Xray sockets would otherwise loop into the tunnel) and the blocked apps
+     * out of the VPN by package. IRNet patch: Xray TUN mode passes false and
+     * keeps Xray's sockets out by binding them to the physical interface
+     * instead, because Samsung leaves its cloned (Dual Messenger) apps out
+     * of any VPN that has an app list.
+     */
+    private boolean buildTun(boolean excludeApps) {
         Intent prepare_intent = prepare(this);
         if (prepare_intent != null) {
-            return;
+            return false;
         }
         Builder builder = new Builder();
         builder.setSession(v2rayConfig.REMARK);
@@ -200,11 +228,13 @@ public class V2rayVPNService extends VpnService implements V2rayServicesListener
         // Xray's Go sockets must use the underlying network rather than
         // entering our own VPN tunnel, which otherwise creates a routing loop.
         // This also excludes the host application's own traffic from the VPN.
-        try {
-            builder.addDisallowedApplication(getPackageName());
-            Log.i("VPN_SERVICE", "Excluded host package from VPN routes: " + getPackageName());
-        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
-            Log.e("VPN_SERVICE", "Unable to exclude host app from VPN", e);
+        if (excludeApps) {
+            try {
+                builder.addDisallowedApplication(getPackageName());
+                Log.i("VPN_SERVICE", "Excluded host package from VPN routes: " + getPackageName());
+            } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+                Log.e("VPN_SERVICE", "Unable to exclude host app from VPN", e);
+            }
         }
 
         if (v2rayConfig.BYPASS_SUBNETS == null || v2rayConfig.BYPASS_SUBNETS.isEmpty()) {
@@ -219,7 +249,7 @@ public class V2rayVPNService extends VpnService implements V2rayServicesListener
                 }
             }
         }
-        if (v2rayConfig.BLOCKED_APPS != null) {
+        if (excludeApps && v2rayConfig.BLOCKED_APPS != null) {
             for (int i = 0; i < v2rayConfig.BLOCKED_APPS.size(); i++) {
                 try {
                     builder.addDisallowedApplication(v2rayConfig.BLOCKED_APPS.get(i));
@@ -253,16 +283,161 @@ public class V2rayVPNService extends VpnService implements V2rayServicesListener
             if (mInterface == null) {
                 Log.e("VPN_SERVICE", "VpnService.Builder.establish returned null");
                 stopAllProcess();
-                return;
+                return false;
             }
             Log.i("VPN_SERVICE", "TUN established, fd=" + mInterface.getFd()
-                    + ", socksPort=" + v2rayConfig.LOCAL_SOCKS5_PORT);
+                    + ", socksPort=" + v2rayConfig.LOCAL_SOCKS5_PORT + ", appsExcluded=" + excludeApps);
             isRunning = true;
-            runTun2socks();
+            return true;
         } catch (Exception e) {
             stopAllProcess();
+            return false;
         }
+    }
 
+    // ─────────────── IRNet patch: Xray TUN mode ───────────────
+
+    /**
+     * Xray reads the VPN interface itself; its own connections are bound to
+     * the physical interface (see withOutboundInterface), which keeps them
+     * out of the tunnel without excluding any app.
+     */
+    private boolean startXrayTun(V2rayCoreManager manager, V2rayConfig config) {
+        // Before the VPN is up: afterwards this app's default network is the VPN.
+        outboundIface = physicalInterface();
+        Log.i(TAG, "Xray TUN mode; outbound interface=" + outboundIface);
+        if (!buildTun(false)) return false;
+        watchUnderlyingNetwork();
+        return manager.startCore(config, withOutboundInterface(config.V2RAY_FULL_JSON_CONFIG, outboundIface),
+                mInterface.getFd());
+    }
+
+    /** Interface name that binds to nothing: connections fail instead of looping. */
+    static final String NO_INTERFACE = "irnet-unbound";
+
+    /**
+     * The config with every outbound's connections bound to [iface] (Xray's
+     * sockopt "interface", SO_BINDTODEVICE). Not the tun inbound's
+     * autoOutboundsInterface: that looks interfaces up over netlink, which
+     * Android refuses to apps. Without an interface the outbounds stay bound
+     * to nothing, so Xray's connections fail rather than loop through the
+     * tunnel.
+     */
+    static String withOutboundInterface(String config, String iface) {
+        String name = iface == null || iface.isEmpty() ? NO_INTERFACE : iface;
+        try {
+            JSONObject json = new JSONObject(config);
+            JSONArray outbounds = json.getJSONArray("outbounds");
+            for (int i = 0; i < outbounds.length(); i++) {
+                JSONObject outbound = outbounds.getJSONObject(i);
+                if ("blackhole".equals(outbound.optString("protocol"))) continue;
+                JSONObject stream = outbound.optJSONObject("streamSettings");
+                if (stream == null) {
+                    stream = new JSONObject();
+                    outbound.put("streamSettings", stream);
+                }
+                JSONObject sockopt = stream.optJSONObject("sockopt");
+                if (sockopt == null) {
+                    sockopt = new JSONObject();
+                    stream.put("sockopt", sockopt);
+                }
+                sockopt.put("interface", name);
+            }
+            return json.toString();
+        } catch (JSONException e) {
+            Log.e(TAG, "Cannot set the outbound interface", e);
+            return config;
+        }
+    }
+
+    /** The interface of the best network that isn't a VPN (Wi-Fi first). */
+    private String physicalInterface() {
+        ConnectivityManager cm = getSystemService(ConnectivityManager.class);
+        if (cm == null) return null;
+        Network active = cm.getActiveNetwork();
+        String best = null;
+        int bestScore = -1;
+        for (Network n : cm.getAllNetworks()) {
+            NetworkCapabilities caps = cm.getNetworkCapabilities(n);
+            LinkProperties lp = cm.getLinkProperties(n);
+            if (caps == null || lp == null || lp.getInterfaceName() == null) continue;
+            if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+                    || !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) continue;
+            int score = (caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) ? 100 : 0)
+                    + (n.equals(active) ? 50 : 0)
+                    + (caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) ? 3
+                    : caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ? 2
+                    : caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ? 1 : 0);
+            if (score > bestScore) {
+                bestScore = score;
+                best = lp.getInterfaceName();
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Follows the network Android would use without the VPN; when its
+     * interface changes (Wi-Fi to mobile data, ...), the core restarts bound
+     * to the new one. The VPN interface and the session stay up.
+     */
+    private void watchUnderlyingNetwork() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return;
+        ConnectivityManager cm = getSystemService(ConnectivityManager.class);
+        if (cm == null) return;
+        coreRestarts = Executors.newSingleThreadExecutor(r -> new Thread(r, "V2Ray_CoreRestart"));
+        NetworkRequest request = new NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+                .build();
+        underlyingCallback = new ConnectivityManager.NetworkCallback() {
+            @Override
+            public void onLinkPropertiesChanged(Network network, LinkProperties lp) {
+                follow(network, lp.getInterfaceName());
+            }
+        };
+        try {
+            cm.registerBestMatchingNetworkCallback(request, underlyingCallback,
+                    new Handler(stopCommandThread.getLooper()));
+        } catch (RuntimeException e) {
+            Log.w(TAG, "Cannot follow the underlying network", e);
+            underlyingCallback = null;
+        }
+    }
+
+    private void follow(Network network, String iface) {
+        if (!isRunning || iface == null) return;
+        try {
+            setUnderlyingNetworks(new Network[]{network});
+        } catch (RuntimeException ignored) {
+        }
+        if (iface.equals(outboundIface)) return;
+        Log.i(TAG, "Underlying network moved to " + iface + " (was " + outboundIface + "); restarting the core");
+        outboundIface = iface;
+        final ExecutorService restarts = coreRestarts;
+        final ParcelFileDescriptor tun = mInterface;
+        final V2rayConfig config = v2rayConfig;
+        if (restarts == null || tun == null || config == null) return;
+        restarts.execute(() -> {
+            if (!isRunning || !iface.equals(outboundIface)) return;
+            V2rayCoreManager.getInstance().restartLoop(
+                    withOutboundInterface(config.V2RAY_FULL_JSON_CONFIG, iface), tun.getFd());
+        });
+    }
+
+    private void stopWatchingUnderlyingNetwork() {
+        ConnectivityManager.NetworkCallback callback = underlyingCallback;
+        underlyingCallback = null;
+        if (callback != null) {
+            try {
+                getSystemService(ConnectivityManager.class).unregisterNetworkCallback(callback);
+            } catch (RuntimeException ignored) {
+            }
+        }
+        if (coreRestarts != null) {
+            coreRestarts.shutdownNow();
+            coreRestarts = null;
+        }
     }
 
     private void runTun2socks() {
@@ -404,6 +579,9 @@ public class V2rayVPNService extends VpnService implements V2rayServicesListener
 
     @Override
     public void startService() {
+        // Xray TUN mode set the VPN up before starting the core (and a core
+        // restart must not build a second one).
+        if (v2rayConfig != null && v2rayConfig.XRAY_TUN) return;
         setup();
     }
 

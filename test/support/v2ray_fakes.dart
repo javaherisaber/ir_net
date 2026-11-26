@@ -28,6 +28,9 @@ class FakeEngine implements VpnEngine {
   String? testInterface;
 
   @override
+  Future<String?> currentTestInterface() async => testInterface;
+
+  @override
   String? get unsupportedReason => null;
 
   @override

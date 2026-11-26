@@ -88,6 +88,51 @@ void main() {
       jsonEncode(c);
     });
 
+    test('Android with cloned apps: Xray reads the VPN, nothing is excluded by package', () {
+      final c = XrayConfigBuilder.androidTunnel(profile,
+          socksPort: 10808,
+          httpPort: 10809,
+          httpAuth: (user: 'irnet', pass: 'p'),
+          hosts: {
+            'de1.example.com': ['203.0.113.10']
+          },
+          bypassAppIds: ['10391', '10402']);
+      final inbounds = c['inbounds'] as List;
+      expect(inbounds.map((i) => i['protocol']), ['tun', 'socks', 'http'],
+          reason: 'the local proxies stay for IRNet\'s own requests and probes');
+      final tun = inbounds.first;
+      expect(tun['settings'].containsKey('autoOutboundsInterface'), isFalse, reason: 'needs netlink, refused to apps');
+      expect(tun['settings'].containsKey('autoSystemRoutingTable'), isFalse, reason: 'Android\'s VpnService routes');
+      expect(c['log']['access'], 'none', reason: 'it would log every connection on the phone');
+      final rules = c['routing']['rules'] as List;
+      expect(rules[0], {
+        'inboundTag': ['tun'],
+        'process': ['10391', '10402'],
+        'outboundTag': 'direct',
+      }, reason: 'bypassed apps (and their clones) go direct, DNS included, so this comes first');
+      expect(rules[1], {
+        'inboundTag': ['tun'],
+        'port': 53,
+        'outboundTag': 'dns-out'
+      });
+      final outbounds = c['outbounds'] as List;
+      expect(outbounds.map((o) => o['tag']), ['proxy', 'direct', 'block', 'dns-out']);
+      expect(outbounds[0]['streamSettings']['sockopt'], {'domainStrategy': 'UseIP', 'interface': 'irnet-unbound'},
+          reason: 'the server\'s name is pinned: reaching it never needs DNS through the tunnel; '
+              'the VPN service binds the connections to the network, and until then to nothing');
+      expect(outbounds[1]['streamSettings']['sockopt'], {'domainStrategy': 'UseIP', 'interface': 'irnet-unbound'});
+      expect(outbounds[2].containsKey('streamSettings'), isFalse, reason: 'blackhole connects nowhere');
+      expect(outbounds[3]['streamSettings']['sockopt'], {'interface': 'irnet-unbound'});
+      expect(c['dns']['hosts'], {
+        'de1.example.com': ['203.0.113.10']
+      });
+      expect(
+          (XrayConfigBuilder.androidTunnel(profile, socksPort: 1, httpPort: 2)['routing']['rules'] as List)
+              .any((r) => r.containsKey('process')),
+          isFalse);
+      jsonEncode(c);
+    });
+
     test('per-OS DNS handling', () {
       final win = (XrayConfigBuilder.tunnel(profile, httpPort: 1, os: 'windows')['inbounds'] as List).first['settings'];
       expect(win['name'], 'IRNet');
